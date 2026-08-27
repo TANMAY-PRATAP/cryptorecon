@@ -8,7 +8,7 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 try:
-    from redis import asyncio as aioredis
+    from redis import asyncio as aioredis  # type: ignore
 except ImportError:
     aioredis = None  # type: ignore
 
