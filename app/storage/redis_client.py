@@ -8,9 +8,9 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 try:
-    import redis.asyncio as redis
+    from redis import asyncio as aioredis
 except ImportError:
-    redis = None  # type: ignore
+    aioredis = None  # type: ignore
 
 
 class RedisManager:
@@ -26,13 +26,13 @@ class RedisManager:
 
     async def connect(self) -> bool:
         """Establish async Redis connection if library and server are available."""
-        if not self.settings.REDIS_ENABLED or redis is None:
+        if not self.settings.REDIS_ENABLED or aioredis is None:
             logger.info("Redis is disabled or redis package not installed; using in-memory queue fallback.")
             self._is_connected = False
             return False
 
         try:
-            self._client = redis.from_url(
+            self._client = aioredis.from_url(
                 self.redis_url,
                 encoding="utf-8",
                 decode_responses=True,
