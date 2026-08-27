@@ -75,7 +75,7 @@ function hashString(str: string): number {
   return Math.abs(hash);
 }
 
-export function deriveDynamicVolume(address: string): number {
+function deriveDynamicVolume(address: string): number {
   const clean = (address || "0x00").toLowerCase();
   const seed = hashString(clean);
   const baseTiers = [4200, 7850, 12400, 15000, 18600, 24350, 28100, 36500, 42000, 56800];
@@ -105,7 +105,7 @@ const BANK_TEMPLATES = [
   { bank: "Kotak Mahindra Bank", ifscPrefix: "KKBK000", handle: "paytm" }
 ];
 
-export function calculateDynamicRiskScore(
+function calculateDynamicRiskScore(
   address: string,
   category: string,
   vaspName?: string
