@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Section 65B BSA Evidence Certificate - {{ complaint_id }}</title>
+    <style>
+        @page { size: A4 portrait; margin: 20mm; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #0f172a; line-height: 1.5; font-size: 10.5pt; }
+        .header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 16px; }
+        .emblem { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1e293b; }
+        .cert-title { text-align: center; font-size: 12pt; font-weight: bold; color: #1e3a8a; text-decoration: underline; margin: 16px 0; }
+        .table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 9.5pt; }
+        .table th, .table td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; }
+        .table th { background-color: #f8fafc; font-weight: bold; }
+        .hash-code { font-family: 'Courier New', monospace; font-size: 8.5pt; word-break: break-all; background-color: #f1f5f9; padding: 2px 4px; }
+        .declaration { background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 10px; margin: 14px 0; font-size: 9.5pt; color: #14532d; }
+        .signature-block { margin-top: 30px; width: 100%; font-size: 9.5pt; }
+        .footer { font-size: 8pt; color: #94a3b8; text-align: center; margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="emblem">CERTIFICATE OF ELECTRONIC EVIDENCE</div>
+        <div style="font-size: 9.5pt; color: #475569;">UNDER SECTION 65B OF THE BHARATIYA SAKSHYA ADHINIYAM (BSA), 2023</div>
+        <div style="font-size: 8.5pt; color: #64748b;">(Corresponding to erstwhile Section 65B of Indian Evidence Act, 1872)</div>
+    </div>
+
+    <div class="cert-title">
+        CERTIFICATE AS TO ADMISSIBILITY OF ELECTRONIC FORENSIC SYSTEM OUTPUT
+    </div>
+
+    <p>
+        I, <strong>{{ certifying_examiner_name }}</strong>, having lawful control over the automated multi-chain forensic reconnaissance engine <em>CryptoRecon (V4.0)</em> operating under <strong>{{ lab_accreditation }}</strong>, do hereby certify pursuant to Section 65B(4) of the Bharatiya Sakshya Adhiniyam, 2023 as follows:
+    </p>
+
+    <ol style="font-size: 9.5pt;">
+        <li>That the computer output containing blockchain transfer ledgers, smart contract state proofs, and VASP attribution data for Complaint ID <strong>{{ complaint_id }}</strong> was produced by a dedicated forensic computing system during the period over which the system was used regularly.</li>
+        <li>That throughout the material period, the computer system was operating properly and the electronic RPC response hashes was not subject to alteration or tampering.</li>
+    </ol>
+
+    <div style="font-weight: bold; margin-top: 12px; font-size: 10pt;">TECHNICAL & CRYPTOGRAPHIC VERIFICATION MANIFEST:</div>
+    <table class="table">
+        <tr>
+            <th style="width: 30%;">Parameter</th>
+            <th style="width: 70%;">Cryptographic Evidence / Value</th>
+        </tr>
+        <tr>
+            <td><strong>Investigation Case Ref</strong></td>
+            <td><code>{{ complaint_id }}</code></td>
+        </tr>
+        <tr>
+            <td><strong>Target Suspect Wallet</strong></td>
+            <td><span class="hash-code">{{ suspect_address }}</span></td>
+        </tr>
+        <tr>
+            <td><strong>Blockchain Network</strong></td>
+            <td>{{ blockchain | upper }}</td>
+        </tr>
+        <tr>
+            <td><strong>RPC Node Endpoint</strong></td>
+            <td><code>{{ rpc_endpoint_used }}</code></td>
+        </tr>
+        <tr>
+            <td><strong>SHA-256 RPC Response Digest</strong></td>
+            <td><span class="hash-code">{{ rpc_response_sha256_hash }}</span></td>
+        </tr>
+        <tr>
+            <td><strong>Merkle Inclusion Root</strong></td>
+            <td><span class="hash-code">{{ merkle_root_proof }}</span></td>
+        </tr>
+        <tr>
+            <td><strong>System Host & Node ID</strong></td>
+            <td><code>{{ system_hostname }}</code></td>
+        </tr>
+        <tr>
+            <td><strong>UTC Generation Timestamp</strong></td>
+            <td><code>{{ generated_at_utc }}</code></td>
+        </tr>
+    </table>
+
+    <div class="declaration">
+        <strong>EXAMINER'S AFFIRMATION:</strong> I certify that the electronic record reproduced herein is a true, unmodified extraction of on-chain distributed ledger states and institutional VASP routing records, meeting the standards of judicial admissibility under Section 65B BSA, 2023.
+    </div>
+
+    <table class="signature-block">
+        <tr>
+            <td style="width: 50%;">
+                <strong>Date:</strong> {{ date_of_issue }}<br>
+                <strong>Location:</strong> Digital Forensics Laboratory
+            </td>
+            <td style="width: 50%; text-align: right;">
+                <strong>{{ certifying_examiner_name }}</strong><br>
+                Certified Cyber Forensic Analyst<br>
+                {{ lab_accreditation }}
+            </td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        CryptoRecon V4.0 Evidentiary Audit Trail • SHA-256 Integrity Seal: {{ certificate_sha256 }}
+    </div>
+
+</body>
+</html>

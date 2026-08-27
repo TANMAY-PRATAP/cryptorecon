@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoRecon V4.0 — Multi-Chain Forensic Reconnaissance & Asset Recovery Engine</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Cytoscape.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #0f172a;
+            --bg-card: #1e293b;
+            --border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-primary: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-red: #ef4444;
+            --accent-purple: #a855f7;
+            --accent-orange: #f97316;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Navigation / Ingestion Bar */
+        .topbar {
+            height: 64px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 20;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 1.25rem; }
+        .brand-badge { background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .ingest-bar { display: flex; align-items: center; gap: 10px; flex: 1; max-width: 900px; margin: 0 20px; }
+        .input-group { display: flex; background: #1e293b; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: 100%; }
+        .input-field { background: transparent; border: none; padding: 8px 14px; color: var(--text-primary); font-family: inherit; font-size: 0.85rem; outline: none; }
+        .input-field:focus { background: rgba(59, 130, 246, 0.1); }
+        .select-field { background: #1e293b; border: none; color: var(--text-secondary); padding: 8px 12px; font-size: 0.85rem; outline: none; border-left: 1px solid var(--border); }
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); }
+
+        /* Main Workspace Layout */
+        .workspace {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 64px);
+            position: relative;
+        }
+
+        /* Canvas Area */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #111827 0%, #090d16 100%);
+        }
+        #cy { width: 100%; height: 100%; }
+
+        .canvas-toolbar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            z-index: 10;
+        }
+        .tool-btn {
+            background: #1e293b;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tool-btn:hover { background: #334155; }
+
+        .legend-bar {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            display: flex;
+            gap: 12px;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.75rem;
+            z-index: 10;
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* Right Intelligence & Action Panel */
+        .side-panel {
+            width: 380px;
+            background: rgba(15, 23, 42, 0.95);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            z-index: 15;
+            padding: 20px;
+            gap: 18px;
+        }
+        .panel-header { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+        .card-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
+
+        /* Risk Meter */
+        .risk-gauge { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .risk-val { font-size: 2.2rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+        .risk-badge { padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; }
+
+        .typology-item { display: flex; justify-content: space-between; font-size: 0.8rem; margin: 4px 0; }
+        .progress-bg { background: #334155; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 2px; }
+        .progress-fill { height: 100%; border-radius: 3px; }
+
+        /* Action Buttons */
+        .action-grid { display: flex; flex-direction: column; gap: 10px; }
+        .btn-action {
+            background: #1e293b;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+        .btn-action:hover { background: #334155; border-color: #475569; }
+        .btn-freeze { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; border: none; }
+        .btn-freeze:hover { box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); }
+
+        /* Slide-out Drawer for Mule Clusters */
+        .drawer {
+            position: absolute;
+            top: 0;
+            right: 380px;
+            width: 480px;
+            height: 100%;
+            background: #0f172a;
+            border-left: 1px solid var(--border);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            z-index: 30;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        .drawer.open { transform: translateX(0); }
+        .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px; }
+        .mule-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; }
+        .mule-table th, .mule-table td { padding: 8px; border-bottom: 1px solid var(--border); text-align: left; }
+        .mule-table th { color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation & Ingestion Bar -->
+    <header class="topbar">
+        <div class="brand">
+            <i data-lucide="shield-alert" style="color: #3b82f6;"></i>
+            <span>CryptoRecon</span>
+            <span class="brand-badge">V4.0 Master</span>
+        </div>
+
+        <div class="ingest-bar">
+            <div class="input-group">
+                <input type="text" id="complaintId" class="input-field" style="width: 140px;" value="NCRP-2026-98124" placeholder="Complaint ID">
+                <input type="text" id="suspectAddress" class="input-field" style="flex: 1;" value="0x71C2e36675B8B1Fc2ffDa6112dE9C1C90D218976" placeholder="Suspect Address">
+                <select id="blockchainSelect" class="select-field">
+                    <option value="ethereum">Ethereum (EVM)</option>
+                    <option value="tron">TRON (TRC-20)</option>
+                    <option value="bitcoin">Bitcoin (UTXO)</option>
+                    <option value="polygon">Polygon</option>
+                    <option value="bsc">BSC</option>
+                </select>
+            </div>
+            <button id="runTraceBtn" class="btn-primary">
+                <i data-lucide="radar"></i> Run Forensic Traversal
+            </button>
+        </div>
+
+        <div>
+            <span style="font-size: 0.8rem; color: var(--text-secondary);"><i data-lucide="activity" style="display:inline; width:14px;"></i> Live 1930 Gateway</span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+        
+        <!-- Canvas -->
+        <div class="canvas-container">
+            <div class="canvas-toolbar">
+                <button class="tool-btn" id="btnFit"><i data-lucide="maximize"></i> Fit Canvas</button>
+                <button class="tool-btn" id="btnCoseLayout"><i data-lucide="share-2"></i> Force Directed</button>
+                <button class="tool-btn" id="btnHierarchyLayout"><i data-lucide="git-branch"></i> Tree Layout</button>
+            </div>
+
+            <div id="cy"></div>
+
+            <div class="legend-bar">
+                <div class="legend-item"><div class="legend-dot" style="background: #22c55e;"></div> Low (<=30)</div>
+                <div class="legend-item"><div class="legend-dot" style="background: #eab308;"></div> Medium (31-70)</div>
+                <div class="legend-item"><div class="legend-dot" style="background: #ef4444;"></div> High (>=71)</div>
+                <div class="legend-item"><div class="legend-dot" style="background: #a855f7;"></div> Mixer Breakpoint</div>
+                <div class="legend-item"><div class="legend-dot" style="background: #3b82f6;"></div> VASP Nodal</div>
+                <div class="legend-item"><div class="legend-dot" style="background: #f97316;"></div> Mule Ring</div>
+            </div>
+        </div>
+
+        <!-- Right Side Panel -->
+        <aside class="side-panel">
+            <div class="panel-header">
+                <span>Forensic Intelligence</span>
+                <i data-lucide="info" style="color: var(--text-secondary); width:18px;"></i>
+            </div>
+
+            <!-- Risk Meter Card -->
+            <div class="card">
+                <div class="card-title">AI/ML Composite Risk Score</div>
+                <div class="risk-gauge">
+                    <span id="riskScoreVal" class="risk-val" style="color: #ef4444;">88</span>
+                    <span id="riskTierBadge" class="risk-badge" style="background: rgba(239,68,68,0.2); color: #ef4444;">HIGH FRAUD RISK</span>
+                </div>
+                <div id="typologyList">
+                    <div class="typology-item"><span>Mule Ring Smurfing</span><span id="muleProb">84%</span></div>
+                    <div class="progress-bg"><div id="muleBar" class="progress-fill" style="width: 84%; background: #f97316;"></div></div>
+                    <div class="typology-item" style="margin-top: 6px;"><span>Ransomware</span><span id="ransomProb">12%</span></div>
+                    <div class="progress-bg"><div id="ransomBar" class="progress-fill" style="width: 12%; background: #3b82f6;"></div></div>
+                </div>
+            </div>
+
+            <!-- P2P Cashout Re-Stitching Card -->
+            <div class="card">
+                <div class="card-title">P2P Banking Re-Stitching (1930)</div>
+                <div style="font-size: 0.85rem; line-height: 1.6;">
+                    <div><strong>VASP Nodal:</strong> <span id="p2pExchange">CoinDCX Hot Vault</span></div>
+                    <div><strong>Account Name:</strong> <span id="p2pName">Rajesh Kumar Verma</span></div>
+                    <div><strong>Bank A/C:</strong> <code id="p2pAcc" style="color: #38bdf8;">50100492817291</code></div>
+                    <div><strong>IFSC:</strong> <code id="p2pIfsc">HDFC0001234</code> (HDFC Bank)</div>
+                    <div><strong>UPI VPA:</strong> <code id="p2pUpi">mule.cashout99@okhdfcbank</code></div>
+                </div>
+            </div>
+
+            <!-- Statutory Actions -->
+            <div class="action-grid">
+                <button id="btnExportBnss" class="btn-action">
+                    <span><i data-lucide="file-text" style="display:inline; width:16px; margin-right:6px;"></i> Export Section 94 BNSS Notice</span>
+                    <i data-lucide="download" style="width:16px;"></i>
+                </button>
+                <button id="btnExportBsa" class="btn-action">
+                    <span><i data-lucide="file-badge" style="display:inline; width:16px; margin-right:6px;"></i> Generate Section 65B BSA Certificate</span>
+                    <i data-lucide="download" style="width:16px;"></i>
+                </button>
+                <button id="btnTriggerFreeze" class="btn-action btn-freeze">
+                    <span><i data-lucide="lock" style="display:inline; width:16px; margin-right:6px;"></i> Trigger 1930 CFCFRMS Freeze</span>
+                    <i data-lucide="send" style="width:16px;"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Slide-Out Drawer for Mule Cluster -->
+        <div id="muleDrawer" class="drawer">
+            <div class="drawer-header">
+                <div>
+                    <h3 id="drawerClusterId" style="font-size: 1.1rem; color: #f97316;">Mule-Cluster Decomposition</h3>
+                    <span id="drawerClusterVolume" style="font-size: 0.8rem; color: var(--text-secondary);">6 Wallets | 5,800 USDT Smurfed</span>
+                </div>
+                <button id="closeDrawerBtn" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;"><i data-lucide="x"></i></button>
+            </div>
+            <div style="overflow-y: auto; flex: 1;">
+                <table class="mule-table">
+                    <thead>
+                        <tr>
+                            <th>Recipient Wallet</th>
+                            <th>Split</th>
+                            <th>%</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="muleTableBody">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Application Script -->
+    <script>
+        lucide.createIcons();
+
+        let cy;
+
+        function initCytoscape() {
+            cy = cytoscape({
+                container: document.getElementById('cy'),
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'label': 'data(label)',
+                            'color': '#f8fafc',
+                            'font-size': '10px',
+                            'font-family': 'Outfit, sans-serif',
+                            'text-valign': 'bottom',
+                            'text-margin-y': 8,
+                            'background-color': 'data(color)',
+                            'width': 36,
+                            'height': 36,
+                            'border-width': 2,
+                            'border-color': 'data(color)'
+                        }
+                    },
+                    {
+                        selector: 'node[category = "SUSPECT"]',
+                        style: {
+                            'width': 46,
+                            'height': 46,
+                            'border-width': 3,
+                            'background-color': 'data(color)',
+                            'border-color': 'data(color)'
+                        }
+                    },
+                    {
+                        selector: 'node[risk_score <= 35], node[riskScore <= 35]',
+                        style: {
+                            'background-color': '#10b981',
+                            'border-color': '#10b981'
+                        }
+                    },
+                    {
+                        selector: 'node[risk_score > 35][risk_score <= 70], node[riskScore > 35][riskScore <= 70]',
+                        style: {
+                            'background-color': '#f59e0b',
+                            'border-color': '#f59e0b'
+                        }
+                    },
+                    {
+                        selector: 'node[risk_score > 70], node[riskScore > 70]',
+                        style: {
+                            'background-color': '#ef4444',
+                            'border-color': '#ef4444'
+                        }
+                    },
+                    {
+                        selector: 'node[category = "VASP"]',
+                        style: {
+                            'background-color': '#3b82f6',
+                            'border-color': '#3b82f6'
+                        }
+                    },
+                    {
+                        selector: 'node[category = "MULE_CLUSTER"]',
+                        style: {
+                            'shape': 'round-rectangle',
+                            'width': 56,
+                            'height': 38,
+                            'background-color': '#f97316'
+                        }
+                    },
+                    {
+                        selector: "node[?is_breakpoint], node[category = 'MIXER_POOL']",
+                        style: {
+                            'shape': 'diamond',
+                            'width': 44,
+                            'height': 44,
+                            'background-color': '#a855f7'
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'label': 'data(label)',
+                            'font-size': '9px',
+                            'color': '#cbd5e1',
+                            'text-background-color': '#0d1117',
+                            'text-background-opacity': 0.85,
+                            'text-background-padding': '3px',
+                            'text-rotation': 'autorotate',
+                            'text-margin-y': -8,
+                            'curve-style': 'bezier',
+                            'target-arrow-shape': 'triangle',
+                            'line-color': '#475569',
+                            'target-arrow-color': '#475569',
+                            'width': 2
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'cose',
+                    animate: false,
+                    nodeOverlap: 20,
+                    idealEdgeLength: 120,
+                    nodeRepulsion: 450000,
+                    componentSpacing: 100,
+                    nodeDimensionsIncludeLabels: true
+                }
+            });
+
+            // Node Click / Tap Event
+            cy.on('tap', 'node', function(evt){
+                var node = evt.target;
+                var data = node.data();
+                
+                // Update Address input & selected target
+                if (data.address) {
+                    document.getElementById('suspectAddress').value = data.address;
+                }
+                
+                // Update Risk Score Gauge
+                if (data.risk_score !== undefined) {
+                    document.getElementById('riskScoreValue').innerText = data.risk_score;
+                }
+
+                // If Mule Cluster, open drawer
+                if (data.is_mule_cluster && data.cluster_data) {
+                    openMuleDrawer(data.cluster_data);
+                } else {
+                    document.getElementById('muleDrawer').classList.remove('open');
+                }
+            });
+
+            // Canvas Click / Tap Event (Deselect / Close drawer)
+            cy.on('tap', function(evt){
+                if (evt.target === cy) {
+                    document.getElementById('muleDrawer').classList.remove('open');
+                }
+            });
+        }
+
+        function openMuleDrawer(clusterData) {
+            document.getElementById('drawerClusterId').innerText = clusterData.cluster_id;
+            document.getElementById('drawerClusterVolume').innerText = `${clusterData.total_wallets} Wallets | ${clusterData.total_volume_usdt.toLocaleString()} USDT`;
+            
+            const tbody = document.getElementById('muleTableBody');
+            tbody.innerHTML = '';
+            (clusterData.members || []).forEach(m => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${m.address.substring(0,8)}...${m.address.substring(m.address.length-4)}</td>
+                    <td>${m.split_amount.toFixed(0)}</td>
+                    <td>${m.percentage_of_parent}%</td>
+                    <td>${m.current_balance.toFixed(0)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('muleDrawer').classList.add('open');
+        }
+
+        document.getElementById('closeDrawerBtn').addEventListener('click', () => {
+            document.getElementById('muleDrawer').classList.remove('open');
+        });
+
+        // Run Traversal Simulation / API Call
+        async function runTraversal() {
+            const suspect = document.getElementById('suspectAddress').value;
+            const chain = document.getElementById('blockchainSelect').value;
+            const complaintId = document.getElementById('complaintId').value;
+
+            try {
+                const res = await fetch('/api/v1/traversal/trace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        suspect_address: suspect,
+                        blockchain: chain,
+                        incident_timestamp_utc: new Date().toISOString(),
+                        total_stolen_amount: 12000.0,
+                        max_hops: 3
+                    })
+                });
+
+                if (res.ok) {
+                    const graphData = await res.json();
+                    cy.elements().remove();
+                    cy.add(graphData.elements);
+                    cy.layout({ name: 'cose', animate: true }).run();
+                }
+            } catch (e) {
+                console.error("Traversal error:", e);
+            }
+        }
+
+        // Layout buttons
+        document.getElementById('btnFit').addEventListener('click', () => cy.fit());
+        document.getElementById('btnCoseLayout').addEventListener('click', () => cy.layout({ name: 'cose', animate: true }).run());
+        document.getElementById('btnHierarchyLayout').addEventListener('click', () => cy.layout({ name: 'breadthfirst', directed: true, animate: true }).run());
+        document.getElementById('runTraceBtn').addEventListener('click', runTraversal);
+
+        // Export Section 94 BNSS
+        document.getElementById('btnExportBnss').addEventListener('click', async () => {
+            const complaintId = document.getElementById('complaintId').value;
+            const suspect = document.getElementById('suspectAddress').value;
+            const chain = document.getElementById('blockchainSelect').value;
+
+            const res = await fetch('/api/v1/legal/export-sec94-bnss', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    complaint_id: complaintId,
+                    suspect_address: suspect,
+                    blockchain: chain,
+                    vasp_name: "CoinDCX",
+                    compliance_email: "nodal.officer@coindcx.com",
+                    stolen_amount_usdt: 12000.0
+                })
+            });
+            const data = await res.json();
+            const blob = new Blob([data.html_content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        });
+
+        // Export Section 65B BSA
+        document.getElementById('btnExportBsa').addEventListener('click', async () => {
+            const complaintId = document.getElementById('complaintId').value;
+            const suspect = document.getElementById('suspectAddress').value;
+            const chain = document.getElementById('blockchainSelect').value;
+
+            const res = await fetch('/api/v1/legal/export-sec65b-bsa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    complaint_id: complaintId,
+                    suspect_address: suspect,
+                    blockchain: chain
+                })
+            });
+            const data = await res.json();
+            const blob = new Blob([data.html_content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        });
+
+        // Trigger 1930 CFCFRMS Freeze
+        document.getElementById('btnTriggerFreeze').addEventListener('click', async () => {
+            const complaintId = document.getElementById('complaintId').value;
+            const res = await fetch(`/api/v1/legal/cfcfrms-freeze?complaint_id=${complaintId}&vasp_uid=UID_CDX_99214&tx_hash=0xsample_tx_freeze`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            alert(`🚨 1930 / I4C CFCFRMS Emergency Lien Triggered!\n\nTarget Account: ${data.target_account_number} (${data.target_bank_name})\nFreeze Amount: INR ${data.freeze_amount_inr.toLocaleString()}\nEvidence Ref: ${data.evidence_cert_ref}`);
+        });
+
+        // Address input auto-switch network
+        document.getElementById('suspectAddress').addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            const select = document.getElementById('blockchainSelect');
+            if (val.startsWith('0x') || val.startsWith('0X')) {
+                select.value = 'ethereum';
+            } else if (val.startsWith('T') || val.startsWith('t')) {
+                select.value = 'tron';
+            } else if (val.startsWith('1') || val.startsWith('3') || val.toLowerCase().startsWith('bc1')) {
+                select.value = 'bitcoin';
+            }
+        });
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initCytoscape();
+            runTraversal();
+        });
+    </script>
+</body>
+</html>

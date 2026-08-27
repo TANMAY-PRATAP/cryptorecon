@@ -1,0 +1,33 @@
+# CryptoRecon V4.0 - Core Dependencies
+# Target Python Version: >= 3.10
+
+# Web Framework & API
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+email-validator>=2.1.0
+
+# Multi-Chain & Web3 Engine
+web3>=6.19.0
+eth-typing>=4.1.0
+eth-utils>=4.1.0
+tronpy>=0.4.0
+base58>=2.1.1
+
+# Caching, Asynchronous I/O & Networking
+redis>=5.0.4
+httpx>=0.27.0
+python-dotenv>=1.0.1
+
+# Graph Data Structures & Algorithmic Utilities
+networkx>=3.2.1
+numpy>=1.26.0
+
+# Inverted Bloom Filter & High-Performance Hashing
+mmh3>=4.1.0; sys_platform != 'win32'
+bitarray>=2.9.2; sys_platform != 'win32'
+
+# Testing & Quality Assurance
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
