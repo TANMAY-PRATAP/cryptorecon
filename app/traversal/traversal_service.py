@@ -67,7 +67,7 @@ class TraversalService:
 
         # 1. Add Root Suspect Node (Hop 0) with classification inspection
         inspect_root = self.attributor.inspect_address(root_address, chain)
-        if (
+        is_mixer = (
             inspect_root.evidence.get("protocol")
             or "Tornado" in (inspect_root.attributed_vasp or "")
             or "Mixer" in (inspect_root.attributed_vasp or "")
@@ -76,14 +76,33 @@ class TraversalService:
                 "0xd90e2f925da726b50c4ed8d0fb90ad053324f31b",
                 "0x910cbd523d972eb0a6f4cae4618ad62622b39dbf"
             )
-        ):
+        )
+        is_sanctioned_or_threat = (
+            inspect_root.evidence.get("threat_actor")
+            or inspect_root.entity_type in ("OFAC_SANCTIONED", "HACKER", "EXPLOITER", "MULE_WALLET")
+            or "Exploiter" in (inspect_root.attributed_vasp or "")
+            or "Lazarus" in (inspect_root.attributed_vasp or "")
+            or "Hacker" in (inspect_root.attributed_vasp or "")
+            or root_address.lower() in (
+                "0x098b716b8aaf21512996dc57eb0615e2383e2f96",
+                "0xc57620e89c30cf1026048d0b3597d9c717d21941"
+            )
+        )
+        is_vasp = (
+            inspect_root.attributed_vasp
+            and inspect_root.attribution_tier != AttributionTier.UNATTRIBUTED
+            and not is_sanctioned_or_threat
+            and not is_mixer
+        )
+
+        if is_mixer:
             graph_builder.add_mixer_node(
                 address=root_address,
                 mixer_protocol=inspect_root.evidence.get("protocol", "Tornado.Cash"),
                 blockchain=chain,
                 hop_level=0
             )
-        elif inspect_root.attributed_vasp and inspect_root.attribution_tier != AttributionTier.UNATTRIBUTED:
+        elif is_vasp:
             graph_builder.add_vasp_node(
                 address=root_address,
                 vasp_name=inspect_root.attributed_vasp,
@@ -94,14 +113,15 @@ class TraversalService:
                 attribution_tier=inspect_root.attribution_tier.value
             )
         else:
-            root_risk = self._calculate_address_risk(root_address, chain)
+            root_risk = 95 if is_sanctioned_or_threat else self._calculate_address_risk(root_address, chain)
             graph_builder.add_wallet_node(
                 address=root_address,
                 blockchain=chain,
-                label=f"Suspect: {root_address[:6]}...{root_address[-4:]}",
+                label=f"Suspect: {inspect_root.attributed_vasp}" if inspect_root.attributed_vasp else f"Suspect: {root_address[:6]}...{root_address[-4:]}",
                 risk_score=root_risk,
                 is_suspect=True,
-                hop_level=0
+                hop_level=0,
+                attribution=inspect_root.evidence
             )
 
         visited_addresses: Set[str] = {root_address.lower()}

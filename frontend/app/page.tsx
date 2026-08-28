@@ -138,21 +138,41 @@ function calculateDynamicRiskScore(
     };
   }
 
-  // 1. Known VASP, Hot Vault, Exchange, or Treasury -> Blue #3b82f6 matching Legend
+  // 1. Sanctioned Threat Actors, Hackers, or Exploiters -> Crimson Red #ef4444
+  const isSanctionedOrExploiter =
+    vasp.includes("lazarus") ||
+    vasp.includes("exploiter") ||
+    vasp.includes("hacker") ||
+    vasp.includes("sanctioned") ||
+    clean === "0x098b716b8aaf21512996dc57eb0615e2383e2f96" ||
+    clean === "0xc57620e89c30cf1026048d0b3597d9c717d21941";
+
+  if (isSanctionedOrExploiter) {
+    return {
+      score: 95,
+      tier: "HIGH FRAUD / OFAC SANCTIONED",
+      color: "#ef4444",
+      badgeBg: "bg-rose-500/20",
+      badgeText: "text-rose-400",
+    };
+  }
+
+  // 2. Known VASP, Hot Vault, Exchange, or Treasury -> Blue #3b82f6 matching Legend
   const isKnownVasp =
-    category === "VASP" ||
-    vasp.includes("binance") ||
-    vasp.includes("coindcx") ||
-    vasp.includes("wazirx") ||
-    vasp.includes("suncrypto") ||
-    vasp.includes("zebpay") ||
-    vasp.includes("kraken") ||
-    vasp.includes("tether") ||
-    vasp.includes("coinbase") ||
-    vasp.includes("hot vault") ||
-    clean === "0xdac17f958d2ee523a2206206994597c13d831ec7" ||
-    clean === "0x28c6c06298d514db089934071355e5743bf21d60" ||
-    clean === "0x40ec5b33f54e0e8a33a975908c5ba1c14e5bbbdf";
+    !isSanctionedOrExploiter &&
+    (category === "VASP" ||
+      vasp.includes("binance") ||
+      vasp.includes("coindcx") ||
+      vasp.includes("wazirx") ||
+      vasp.includes("suncrypto") ||
+      vasp.includes("zebpay") ||
+      vasp.includes("kraken") ||
+      vasp.includes("tether") ||
+      vasp.includes("coinbase") ||
+      vasp.includes("hot vault") ||
+      clean === "0xdac17f958d2ee523a2206206994597c13d831ec7" ||
+      clean === "0x28c6c06298d514db089934071355e5743bf21d60" ||
+      clean === "0x40ec5b33f54e0e8a33a975908c5ba1c14e5bbbdf");
 
   if (isKnownVasp) {
     const score = 12 + (seed % 12);
