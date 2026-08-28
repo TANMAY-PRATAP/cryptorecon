@@ -34,4 +34,3 @@ pytest-asyncio>=0.23.0
 
 # PDF & Notice Generation
 jinja2>=3.1.4
-weasyprint>=60.0
