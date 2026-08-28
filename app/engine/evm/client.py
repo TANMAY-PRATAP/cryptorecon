@@ -10,6 +10,17 @@ logger = logging.getLogger("cryptorecon.evm")
 # Transfer(address,address,uint256) topic
 ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
+HTTP_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+}
+
+PUBLIC_EVM_RPCS = [
+    "https://eth.llamarpc.com",
+    "https://cloudflare-eth.com",
+    "https://rpc.ankr.com/eth",
+]
+
 
 class DecodedERC20Transfer(BaseModel):
     tx_hash: str
@@ -83,7 +94,7 @@ class EVMClient:
 
         transfers = []
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=4.0, headers=HTTP_HEADERS) as client:
                 res = await client.post(self.rpc_url, json=payload_out)
                 data = res.json()
                 if "result" in data and isinstance(data["result"], list):
@@ -102,7 +113,7 @@ class EVMClient:
         etherscan_api_key: Optional[str] = None,
         limit: int = 15
     ) -> List[Dict[str, Any]]:
-        """Fetch actual on-chain outgoing transactions for a wallet with multi-source fallback."""
+        """Fetch actual on-chain outgoing transactions for a wallet with robust multi-source fallback."""
         clean_addr = wallet_address.strip().lower()
         outflows: List[Dict[str, Any]] = []
         seen_txs: set = set()
@@ -120,7 +131,7 @@ class EVMClient:
                     "sort": "desc",
                     "apikey": etherscan_api_key
                 }
-                async with httpx.AsyncClient(timeout=5.0) as client:
+                async with httpx.AsyncClient(timeout=4.0, headers=HTTP_HEADERS) as client:
                     res = await client.get(url, params=params)
                     if res.status_code == 200:
                         data = res.json()
@@ -132,13 +143,18 @@ class EVMClient:
                                     if tx_hash not in seen_txs and to_addr:
                                         seen_txs.add(tx_hash)
                                         decimals = int(tx.get("tokenDecimal") or 6)
-                                        val = float(tx.get("value", 0)) / (10 ** decimals)
+                                        raw_val = float(tx.get("value", 0))
+                                        val = raw_val / (10 ** decimals) if decimals > 0 else raw_val
                                         outflows.append({
                                             "to_address": to_addr,
+                                            "to": to_addr,
                                             "amount": round(val, 2),
+                                            "value": round(val, 2),
                                             "token": tx.get("tokenSymbol", "USDT"),
+                                            "token_symbol": tx.get("tokenSymbol", "USDT"),
                                             "tx_hash": tx_hash,
                                             "timestamp_utc": tx.get("timeStamp"),
+                                            "block_number": int(tx.get("blockNumber") or 0),
                                             "gas_funder": None
                                         })
             except Exception as e:
@@ -156,7 +172,7 @@ class EVMClient:
                         "sort": "desc",
                         "apikey": etherscan_api_key
                     }
-                    async with httpx.AsyncClient(timeout=5.0) as client:
+                    async with httpx.AsyncClient(timeout=4.0, headers=HTTP_HEADERS) as client:
                         res = await client.get("https://api.etherscan.io/api", params=params_eth)
                         if res.status_code == 200:
                             data = res.json()
@@ -170,17 +186,21 @@ class EVMClient:
                                             val_eth = float(tx.get("value", 0)) / 1e18
                                             outflows.append({
                                                 "to_address": to_addr,
+                                                "to": to_addr,
                                                 "amount": round(val_eth, 4),
+                                                "value": round(val_eth, 4),
                                                 "token": "ETH",
+                                                "token_symbol": "ETH",
                                                 "tx_hash": tx_hash,
                                                 "timestamp_utc": tx.get("timeStamp"),
+                                                "block_number": int(tx.get("blockNumber") or 0),
                                                 "gas_funder": None
                                             })
                 except Exception as e:
                     logger.debug(f"Etherscan txlist error: {e}")
 
         # 2. Secondary Fallback: Alchemy Asset Transfers API
-        if len(outflows) < 3 and "alchemy.com" in self.rpc_url:
+        if len(outflows) < 2 and "alchemy.com" in self.rpc_url:
             try:
                 payload = {
                     "id": 1,
@@ -195,7 +215,7 @@ class EVMClient:
                         "order": "desc"
                     }]
                 }
-                async with httpx.AsyncClient(timeout=5.0) as client:
+                async with httpx.AsyncClient(timeout=4.0, headers=HTTP_HEADERS) as client:
                     res = await client.post(self.rpc_url, json=payload)
                     if res.status_code == 200:
                         data = res.json()
@@ -207,9 +227,13 @@ class EVMClient:
                                 seen_txs.add(tx_h)
                                 outflows.append({
                                     "to_address": to_addr,
+                                    "to": to_addr,
                                     "amount": round(val, 2),
+                                    "value": round(val, 2),
                                     "token": item.get("asset") or "USDT",
+                                    "token_symbol": item.get("asset") or "USDT",
                                     "tx_hash": tx_h,
+                                    "block_number": int(item.get("blockNum", "0x0"), 16) if isinstance(item.get("blockNum"), str) else 0,
                                     "gas_funder": None
                                 })
             except Exception as e:

@@ -151,6 +151,8 @@ class TraversalService:
                         val_usd = branch_amt * 2800.0
                     elif token_symbol in ("BTC", "WBTC"):
                         val_usd = branch_amt * 65000.0
+                    elif token_symbol not in ("USDT", "USDC", "DAI", "FDUSD", "BUSD") and branch_amt > 0:
+                        val_usd = branch_amt * 100.0
 
                     # Evaluate Dynamic CFR Pruning
                     passes_cfr, threshold = cfr_pruner.should_traverse(
