@@ -160,44 +160,43 @@ class EVMClient:
             except Exception as e:
                 logger.debug(f"Etherscan tokentx error: {e}")
 
-            # Etherscan Normal ETH Transactions (txlist)
-            if len(outflows) < limit:
-                try:
-                    params_eth = {
-                        "module": "account",
-                        "action": "txlist",
-                        "address": clean_addr,
-                        "page": 1,
-                        "offset": limit,
-                        "sort": "desc",
-                        "apikey": etherscan_api_key
-                    }
-                    async with httpx.AsyncClient(timeout=4.0, headers=HTTP_HEADERS) as client:
-                        res = await client.get("https://api.etherscan.io/api", params=params_eth)
-                        if res.status_code == 200:
-                            data = res.json()
-                            if data.get("status") == "1" and isinstance(data.get("result"), list):
-                                for tx in data["result"]:
-                                    if isinstance(tx, dict) and tx.get("from", "").lower() == clean_addr:
-                                        tx_hash = tx.get("hash", "")
-                                        to_addr = tx.get("to", "")
-                                        if tx_hash not in seen_txs and to_addr:
-                                            seen_txs.add(tx_hash)
-                                            val_eth = float(tx.get("value", 0)) / 1e18
-                                            outflows.append({
-                                                "to_address": to_addr,
-                                                "to": to_addr,
-                                                "amount": round(val_eth, 4),
-                                                "value": round(val_eth, 4),
-                                                "token": "ETH",
-                                                "token_symbol": "ETH",
-                                                "tx_hash": tx_hash,
-                                                "timestamp_utc": tx.get("timeStamp"),
-                                                "block_number": int(tx.get("blockNumber") or 0),
-                                                "gas_funder": None
-                                            })
-                except Exception as e:
-                    logger.debug(f"Etherscan txlist error: {e}")
+            # Etherscan Normal ETH Transactions (txlist) - Always query and combine
+            try:
+                params_eth = {
+                    "module": "account",
+                    "action": "txlist",
+                    "address": clean_addr,
+                    "page": 1,
+                    "offset": limit,
+                    "sort": "desc",
+                    "apikey": etherscan_api_key
+                }
+                async with httpx.AsyncClient(timeout=4.0, headers=HTTP_HEADERS) as client:
+                    res = await client.get("https://api.etherscan.io/api", params=params_eth)
+                    if res.status_code == 200:
+                        data = res.json()
+                        if data.get("status") == "1" and isinstance(data.get("result"), list):
+                            for tx in data["result"]:
+                                if isinstance(tx, dict) and tx.get("from", "").lower() == clean_addr:
+                                    tx_hash = tx.get("hash", "")
+                                    to_addr = tx.get("to", "")
+                                    if tx_hash not in seen_txs and to_addr:
+                                        seen_txs.add(tx_hash)
+                                        val_eth = float(tx.get("value", 0)) / 1e18
+                                        outflows.append({
+                                            "to_address": to_addr,
+                                            "to": to_addr,
+                                            "amount": round(val_eth, 4),
+                                            "value": round(val_eth, 4),
+                                            "token": "ETH",
+                                            "token_symbol": "ETH",
+                                            "tx_hash": tx_hash,
+                                            "timestamp_utc": tx.get("timeStamp"),
+                                            "block_number": int(tx.get("blockNumber") or 0),
+                                            "gas_funder": None
+                                        })
+            except Exception as e:
+                logger.debug(f"Etherscan txlist error: {e}")
 
         # 2. Secondary Fallback: Alchemy Asset Transfers API
         if len(outflows) < 2 and "alchemy.com" in self.rpc_url:
