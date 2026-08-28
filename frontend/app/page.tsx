@@ -607,8 +607,23 @@ export default function ForensicDashboard() {
       if (res.ok) {
         const graphData = await res.json();
         if (cyInstance.current && graphData.elements) {
+          const nodes = graphData.elements.filter(
+            (el: any) => el.group === "nodes" || (!el.group && el.data && !el.data.source)
+          );
+          const nodeIds = new Set(
+            nodes.map((n: any) => String(n.data?.id || "").toLowerCase())
+          );
+          const rawEdges = graphData.elements.filter(
+            (el: any) => el.group === "edges" || (!el.group && el.data && el.data.source && el.data.target)
+          );
+          const validEdges = rawEdges.filter((e: any) => {
+            const src = String(e.data?.source || "").toLowerCase();
+            const tgt = String(e.data?.target || "").toLowerCase();
+            return nodeIds.has(src) && nodeIds.has(tgt);
+          });
+
           cyInstance.current.elements().remove();
-          cyInstance.current.add(graphData.elements);
+          cyInstance.current.add([...nodes, ...validEdges]);
           const layout = cyInstance.current.layout({
             name: "cose",
             animate: true,

@@ -140,7 +140,7 @@ class ForensicGraphBuilder:
         hop_level: int = 1
     ) -> None:
         """Add a collapsed composite MuleCluster node with internal tabular breakdown."""
-        cluster_id = mule_cluster.cluster_id
+        cluster_id = str(mule_cluster.cluster_id).lower()
         self.mule_clusters[cluster_id] = mule_cluster
 
         self.graph.add_node(
