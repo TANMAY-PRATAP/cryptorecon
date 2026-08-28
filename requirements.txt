@@ -31,3 +31,7 @@ bitarray>=2.9.2; sys_platform != 'win32'
 # Testing & Quality Assurance
 pytest>=8.2.0
 pytest-asyncio>=0.23.0
+
+# PDF & Notice Generation
+jinja2>=3.1.4
+weasyprint>=60.0

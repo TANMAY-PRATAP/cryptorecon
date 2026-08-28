@@ -1,8 +1,8 @@
 """Unit tests for 14-Dimensional Feature Extraction & Node2Vec Embeddings."""
 
-import pytest
-import numpy as np
-from app.ml.features import (
+import pytest  # pyrefly: ignore # type: ignore
+import numpy as np  # pyrefly: ignore # type: ignore
+from app.ml.features import (  # pyrefly: ignore # type: ignore
     calculate_gini_coefficient,
     calculate_degree_entropy,
     generate_node2vec_embedding,

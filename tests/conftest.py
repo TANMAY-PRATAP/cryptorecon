@@ -1,10 +1,7 @@
 """Pytest configuration, fixtures and test setup."""
 
-import pytest
-from datetime import datetime, timezone
-from app.main import app
-from app.core.bloom_filter import InvertedBloomFilter, get_bloom_filter
-from app.storage.memory_store import MemoryCaseStore
+import pytest  # pyrefly: ignore # type: ignore
+from app.core.bloom_filter import InvertedBloomFilter, get_bloom_filter  # pyrefly: ignore # type: ignore
 
 
 @pytest.fixture

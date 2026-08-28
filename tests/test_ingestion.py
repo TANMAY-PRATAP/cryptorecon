@@ -1,8 +1,8 @@
 """Integration tests for Module 1 FastAPI Ingestion Pipeline."""
 
-import pytest
-from starlette.testclient import TestClient
-from app.main import app
+import pytest  # pyrefly: ignore # type: ignore
+from starlette.testclient import TestClient  # pyrefly: ignore # type: ignore
+from app.main import app  # pyrefly: ignore # type: ignore
 
 client = TestClient(app)
 

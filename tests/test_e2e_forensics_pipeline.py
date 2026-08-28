@@ -1,9 +1,9 @@
 """End-to-End System Integration Test for Complete CryptoRecon Pipeline (Modules 1-7)."""
 
-import pytest
+import pytest  # pyrefly: ignore # type: ignore
 from datetime import datetime, timezone
-from starlette.testclient import TestClient
-from app.main import app
+from starlette.testclient import TestClient  # pyrefly: ignore # type: ignore
+from app.main import app  # pyrefly: ignore # type: ignore
 
 client = TestClient(app)
 

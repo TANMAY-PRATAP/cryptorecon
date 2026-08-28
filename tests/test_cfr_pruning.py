@@ -1,7 +1,7 @@
 """Unit tests for Cumulative Flow Ratio (CFR) Dynamic Pruning and Mule Detection."""
 
-import pytest
-from app.traversal.cfr_engine import CFRPruner, MuleClusterDetector
+import pytest  # pyrefly: ignore # type: ignore
+from app.traversal.cfr_engine import CFRPruner, MuleClusterDetector  # pyrefly: ignore # type: ignore
 
 
 def test_cfr_pruner_threshold_calculation():

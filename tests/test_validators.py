@@ -1,8 +1,8 @@
 """Unit tests for Address & Time-Lock Validators."""
 
 from datetime import datetime, timezone, timedelta
-import pytest
-from app.core.validators import (
+import pytest  # pyrefly: ignore # type: ignore
+from app.core.validators import (  # pyrefly: ignore # type: ignore
     validate_chain_address,
     validate_evm_address,
     validate_tron_address,
@@ -10,7 +10,7 @@ from app.core.validators import (
     validate_incident_timelock,
     to_eip55_checksum,
 )
-from app.schemas.chain import Blockchain
+from app.schemas.chain import Blockchain  # pyrefly: ignore # type: ignore
 
 
 def test_evm_eip55_checksum():

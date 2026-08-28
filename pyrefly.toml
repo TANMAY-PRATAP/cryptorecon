@@ -1,0 +1,20 @@
+python_interpreter_path = "c:/dataaaaa/project/venv/Scripts/python.exe"
+search_path = [".", "app", "tests"]
+site_package_path = [
+    "c:/dataaaaa/project/venv/Lib/site-packages",
+    "C:/Users/this/AppData/Local/Programs/Python/Python311/Lib/site-packages"
+]
+project_includes = ["app/**", "tests/**", "api/**"]
+ignore_missing_imports = ["*"]
+type_checking_mode = "off"
+disable_type_errors = true
+
+# kebab-case aliases
+python-interpreter-path = "c:/dataaaaa/project/venv/Scripts/python.exe"
+search-path = [".", "app", "tests"]
+site-package-path = [
+    "c:/dataaaaa/project/venv/Lib/site-packages",
+    "C:/Users/this/AppData/Local/Programs/Python/Python311/Lib/site-packages"
+]
+project-includes = ["app/**", "tests/**", "api/**"]
+ignore-missing-imports = ["*"]

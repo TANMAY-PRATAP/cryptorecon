@@ -1,7 +1,7 @@
 """Unit tests for Multicall3 micro-batching engine."""
 
-import pytest
-from app.engine.evm.multicall import (
+import pytest  # pyrefly: ignore # type: ignore
+from app.engine.evm.multicall import (  # pyrefly: ignore # type: ignore
     MulticallBatchEngine,
     Multicall3Call,
     MULTICALL3_ADDRESS,

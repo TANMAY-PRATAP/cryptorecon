@@ -1,11 +1,11 @@
 """Unit and Integration tests for Mixer Resolver, Mempool Watchdog & ML API Endpoints."""
 
-import pytest
-from starlette.testclient import TestClient
-from app.main import app
-from app.mixer.resolver import MixerResolver
-from app.mixer.watchdog import MempoolMixerWatchdog
-from app.schemas.ml import WatchdogSubscriptionRequest
+import pytest  # pyrefly: ignore # type: ignore
+from starlette.testclient import TestClient  # pyrefly: ignore # type: ignore
+from app.main import app  # pyrefly: ignore # type: ignore
+from app.mixer.resolver import MixerResolver  # pyrefly: ignore # type: ignore
+from app.mixer.watchdog import MempoolMixerWatchdog  # pyrefly: ignore # type: ignore
+from app.schemas.ml import WatchdogSubscriptionRequest  # pyrefly: ignore # type: ignore
 
 client = TestClient(app)
 

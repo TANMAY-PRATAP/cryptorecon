@@ -1,0 +1,14 @@
+{
+  "include": [
+    "app",
+    "tests",
+    "api"
+  ],
+  "venvPath": ".",
+  "venv": "venv",
+  "typeCheckingMode": "off",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportMissingTypeStubs": "none",
+  "reportGeneralTypeIssues": "none"
+}

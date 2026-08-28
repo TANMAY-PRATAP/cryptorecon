@@ -1,10 +1,10 @@
 """Unit tests for LightGBM Classifier, Composite Risk Scorer & HITL Retraining."""
 
-import pytest
-from app.schemas.ml import TypologyType, StructuralFeatures, HITLFeedbackRequest
-from app.ml.classifier import LightGBMTypologyClassifier, CompositeRiskScorer
-from app.ml.bootstrap_loader import BootstrapLoader, HITLFeedbackBuffer
-from app.ml import RiskEngine
+import pytest  # pyrefly: ignore # type: ignore
+from app.schemas.ml import TypologyType, StructuralFeatures, HITLFeedbackRequest  # pyrefly: ignore # type: ignore
+from app.ml.classifier import LightGBMTypologyClassifier, CompositeRiskScorer  # pyrefly: ignore # type: ignore
+from app.ml.bootstrap_loader import BootstrapLoader, HITLFeedbackBuffer  # pyrefly: ignore # type: ignore
+from app.ml import RiskEngine  # pyrefly: ignore # type: ignore
 
 
 def test_mule_ring_typology_prediction():

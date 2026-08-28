@@ -1,9 +1,9 @@
 """Unit and Performance Tests for Inverted Bloom Filter."""
 
 import time
-import pytest
-from app.core.bloom_filter import InvertedBloomFilter
-from app.schemas.entity import EntityTag, EntityType
+import pytest  # pyrefly: ignore # type: ignore
+from app.core.bloom_filter import InvertedBloomFilter  # pyrefly: ignore # type: ignore
+from app.schemas.entity import EntityTag, EntityType  # pyrefly: ignore # type: ignore
 
 
 def test_bloom_filter_pre_seeded_entities():

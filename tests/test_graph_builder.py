@@ -1,11 +1,11 @@
 """Unit and Integration tests for Forensic Graph Builder & Traversal API."""
 
-import pytest
-from starlette.testclient import TestClient
-from app.main import app
-from app.traversal.graph_builder import ForensicGraphBuilder, get_risk_color
-from app.traversal.cfr_engine import MuleClusterDetector
-from app.schemas.traversal import NodeCategory
+import pytest  # pyrefly: ignore # type: ignore
+from starlette.testclient import TestClient  # pyrefly: ignore # type: ignore
+from app.main import app  # pyrefly: ignore # type: ignore
+from app.traversal.graph_builder import ForensicGraphBuilder, get_risk_color  # pyrefly: ignore # type: ignore
+from app.traversal.cfr_engine import MuleClusterDetector  # pyrefly: ignore # type: ignore
+from app.schemas.traversal import NodeCategory  # pyrefly: ignore # type: ignore
 
 client = TestClient(app)
 

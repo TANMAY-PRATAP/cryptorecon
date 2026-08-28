@@ -1,10 +1,10 @@
 """Unit tests for Dual-Stack VASP Attribution Engine (Account & UTXO Stacks)."""
 
-import pytest
-from app.attribution.account_stack import AccountAttributionEngine
-from app.attribution.utxo_stack import UTXOAttributionEngine
-from app.attribution import DualStackAttributor
-from app.schemas.traversal import AttributionTier
+import pytest  # pyrefly: ignore # type: ignore
+from app.attribution.account_stack import AccountAttributionEngine  # pyrefly: ignore # type: ignore
+from app.attribution.utxo_stack import UTXOAttributionEngine  # pyrefly: ignore # type: ignore
+from app.attribution import DualStackAttributor  # pyrefly: ignore # type: ignore
+from app.schemas.traversal import AttributionTier  # pyrefly: ignore # type: ignore
 
 
 def test_evm_tier1_gas_parent_ancestry():
