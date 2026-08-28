@@ -205,7 +205,7 @@ function calculateDynamicRiskScore(
   }
 }
 
-function deriveP2PData(address: string, vaspName?: string, stolenUsdt: number = 0) {
+function deriveP2PData(address: string, vaspName?: string, totalUSD: number = 0) {
   const clean = (address || "").toLowerCase();
   const vasp = (vaspName || "").toLowerCase();
   
@@ -234,8 +234,7 @@ function deriveP2PData(address: string, vaspName?: string, stolenUsdt: number = 
   const firstName = name.split(" ")[0].toLowerCase();
   const upiId = `${firstName}.p2p${(seed % 99) + 10}@${bankInfo.handle}`;
   
-  const dynamicUsdt = stolenUsdt > 0 ? stolenUsdt : (4500 + (seed % 35000));
-  const inrAmount = Math.round(dynamicUsdt * 90.25);
+  const inrAmount = totalUSD > 0 ? Math.round(totalUSD * 90.25) : 0;
 
   return {
     vasp: vaspName || "CoinDCX Nodal Vault",
@@ -321,6 +320,7 @@ export default function ForensicDashboard() {
   const [darknetProb, setDarknetProb] = useState(4);
 
   // Dynamic P2P State
+  const totalSeizureUSDRef = useRef<number>(15000);
   const [p2pData, setP2pData] = useState(() =>
     deriveP2PData("0x71C2e36675B8B1Fc2ffDa6112dE9C1C90D218976", "CoinDCX Hot Vault", 15000)
   );
@@ -369,7 +369,7 @@ export default function ForensicDashboard() {
         },
       });
 
-      const p2p = deriveP2PData(clean, isMixer ? "Tornado.Cash Mixer" : isVasp ? "Verified VASP Treasury" : "CoinDCX Nodal Vault", dynVol);
+      const p2p = deriveP2PData(clean, isMixer ? "Tornado.Cash Mixer" : isVasp ? "Verified VASP Treasury" : "CoinDCX Nodal Vault", totalSeizureUSDRef.current || dynVol);
       setP2pData(p2p);
 
       const typs = deriveTypologies(riskProf.score, dynCategory);
@@ -525,7 +525,7 @@ export default function ForensicDashboard() {
           const vName =
             nodeData.attribution?.vasp_name ||
             (nodeData.category === "VASP" ? nodeData.label : "CoinDCX Nodal Vault");
-          const p2p = deriveP2PData(nodeData.address || nodeData.id, vName, stolenAmount);
+          const p2p = deriveP2PData(nodeData.address || nodeData.id, vName, totalSeizureUSDRef.current);
           setP2pData(p2p);
 
           if (nodeData.is_mule_cluster && nodeData.cluster_data) {
@@ -664,29 +664,47 @@ export default function ForensicDashboard() {
 
           // Compute accurate total suspicious on-chain volume from all graph edges and mule clusters
           let totalSuspiciousUsd = 0;
-          graphData.elements.forEach((el: any) => {
-            if (el.group === "edges" || (el.data && el.data.source && el.data.target)) {
-              const amt = parseFloat(el.data?.amount || 0);
-              const tok = String(el.data?.token || "USDT").toUpperCase();
-              let usdVal = amt;
-              if (tok === "ETH" || tok === "WETH") {
-                usdVal = amt * 2800.0;
-              } else if (tok === "BTC" || tok === "WBTC") {
-                usdVal = amt * 65000.0;
+          if (Array.isArray(graphData.elements)) {
+            graphData.elements.forEach((el: any) => {
+              const d = el.data || el;
+              if (d.source && d.target) {
+                if (d.amount_usd) {
+                  totalSuspiciousUsd += Number(d.amount_usd);
+                } else if (d.amount) {
+                  const amt = parseFloat(d.amount);
+                  const tok = String(d.token || "USDT").toUpperCase();
+                  if (!isNaN(amt)) {
+                    if (tok === "ETH" || tok === "WETH") {
+                      totalSuspiciousUsd += amt * 2800.0;
+                    } else if (tok === "BTC" || tok === "WBTC") {
+                      totalSuspiciousUsd += amt * 65000.0;
+                    } else {
+                      totalSuspiciousUsd += amt;
+                    }
+                  }
+                } else if (d.label) {
+                  const rawStr = String(d.label);
+                  const cleanedNum = parseFloat(rawStr.replace(/,/g, '').replace(/[^0-9.]/g, ''));
+                  if (!isNaN(cleanedNum)) {
+                    if (rawStr.toUpperCase().includes("ETH")) {
+                      totalSuspiciousUsd += cleanedNum * 2800.0;
+                    } else if (rawStr.toUpperCase().includes("BTC")) {
+                      totalSuspiciousUsd += cleanedNum * 65000.0;
+                    } else {
+                      totalSuspiciousUsd += cleanedNum;
+                    }
+                  }
+                }
               }
-              totalSuspiciousUsd += usdVal;
-            }
-          });
 
-          // Also account for collapsed mule clusters if any
-          const clusterNode = graphData.elements.find((el: any) => el.data && el.data.is_mule_cluster);
-          if (clusterNode && clusterNode.data?.cluster_data?.total_volume_usdt) {
-            totalSuspiciousUsd = Math.max(totalSuspiciousUsd, clusterNode.data.cluster_data.total_volume_usdt);
+              if (d.is_mule_cluster && d.cluster_data?.total_volume_usdt) {
+                totalSuspiciousUsd = Math.max(totalSuspiciousUsd, Number(d.cluster_data.total_volume_usdt));
+              }
+            });
           }
 
-          if (totalSuspiciousUsd <= 0) {
-            totalSuspiciousUsd = dynamicVol;
-          }
+          totalSeizureUSDRef.current = totalSuspiciousUsd;
+          setStolenAmount(totalSuspiciousUsd);
 
           // Extract VASP attribution
           const vaspNode = graphData.elements.find(
@@ -700,7 +718,10 @@ export default function ForensicDashboard() {
           setP2pData(newP2P);
 
           // Extract Mule Cluster
-          if (clusterNode && clusterNode.data.cluster_data) {
+          const clusterNode = graphData.elements.find(
+            (el: any) => el.data && (el.data.is_mule_cluster || el.data.category === "MULE_CLUSTER")
+          );
+          if (clusterNode && clusterNode.data?.cluster_data) {
             setSelectedCluster(clusterNode.data.cluster_data);
           } else {
             setSelectedCluster(null);
@@ -1697,7 +1718,7 @@ export default function ForensicDashboard() {
                             setMuleProb(typs.mule);
                             setRansomProb(typs.ransom);
                             setDarknetProb(typs.darknet);
-                            const p2p = deriveP2PData(m.address, "Mule Cashout", stolenAmount);
+                            const p2p = deriveP2PData(m.address, "Mule Cashout", totalSeizureUSDRef.current);
                             setP2pData(p2p);
                             setActiveTab("inspector");
                           }}
