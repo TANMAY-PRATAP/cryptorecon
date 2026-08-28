@@ -104,6 +104,7 @@ class AttributionInspectRequest(BaseModel):
     address: str
     blockchain: str = "ethereum"
     token_contract: Optional[str] = None
+    gas_funder_address: Optional[str] = None
     incident_timestamp_utc: Optional[datetime] = None
 
 
