@@ -201,7 +201,7 @@ function calculateDynamicRiskScore(
     };
   }
 
-  // 3. Dynamic Calculation based on cryptographic hash
+  // 3. Dynamic Calculation based on cryptographic hash for suspect wallets
   const tierBucket = seed % 10;
   if (tierBucket <= 1) {
     // Low Risk Peer -> Emerald Green #10b981
@@ -213,9 +213,9 @@ function calculateDynamicRiskScore(
       badgeBg: "bg-emerald-500/20",
       badgeText: "text-emerald-400",
     };
-  } else if (tierBucket <= 4) {
+  } else if (tierBucket <= 3) {
     // Medium Risk -> Amber Yellow #f59e0b
-    const score = 40 + (seed % 26);
+    const score = 48 + (seed % 18);
     return {
       score,
       tier: "MEDIUM RISK",
@@ -225,7 +225,7 @@ function calculateDynamicRiskScore(
     };
   } else {
     // High Fraud Risk -> Crimson Red #ef4444
-    const score = 75 + (seed % 20);
+    const score = 78 + (seed % 20);
     return {
       score,
       tier: "HIGH FRAUD RISK",
