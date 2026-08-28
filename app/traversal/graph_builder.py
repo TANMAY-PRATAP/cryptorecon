@@ -127,10 +127,11 @@ class ForensicGraphBuilder:
             blockchain=blockchain,
             risk_score=100,
             color_code="#a855f7",  # Purple
+            color="#a855f7",
             is_breakpoint=True,
             is_mule_cluster=False,
             hop_level=hop_level,
-            attribution={"protocol": mixer_protocol, "status": "CRYPTOGRAPHIC_BREAKPOINT"}
+            attribution={"protocol": mixer_protocol, "status": "CRYPTOGRAPHIC_BREAKPOINT", "vasp_name": mixer_protocol}
         )
 
     def add_mule_cluster_node(

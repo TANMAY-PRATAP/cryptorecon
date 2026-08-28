@@ -346,29 +346,33 @@ export default function ForensicDashboard() {
 
     if (clean.length >= 4) {
       const riskProf = calculateDynamicRiskScore(clean, "SUSPECT");
+      const isMixer = riskProf.score === 100;
+      const isVasp = riskProf.score <= 35;
+      const dynCategory = isMixer ? "MIXER_POOL" : isVasp ? "VASP" : "SUSPECT";
       const dynVol = deriveDynamicVolume(clean);
       setSelectedNode({
         id: clean,
-        label: `Suspect: ${clean.slice(0, 6)}...${clean.slice(-4)}`,
-        category: riskProf.score <= 35 ? "VASP" : "SUSPECT",
+        label: isMixer ? `MIXER: ${clean.slice(0, 6)}...${clean.slice(-4)}` : `Suspect: ${clean.slice(0, 6)}...${clean.slice(-4)}`,
+        category: dynCategory,
         address: clean,
         blockchain: detectedChain,
         risk_score: riskProf.score,
         riskScore: riskProf.score,
         color_code: riskProf.color,
         color: riskProf.color,
+        is_breakpoint: isMixer,
         hop_level: 0,
         attribution: {
-          vasp_name: riskProf.score <= 35 ? "Verified Entity / VASP" : "Queried Target Wallet",
-          tier: riskProf.score <= 35 ? "TIER_0_DIRECT_BLOOM" : "PRIMARY_TARGET",
+          vasp_name: isMixer ? "Tornado.Cash Mixer Pool" : isVasp ? "Verified Entity / VASP" : "Queried Target Wallet",
+          tier: isMixer ? "CRYPTOGRAPHIC_BREAKPOINT" : isVasp ? "TIER_0_DIRECT_BLOOM" : "PRIMARY_TARGET",
           compliance_email: "nodal.officer@coindcx.com",
         },
       });
 
-      const p2p = deriveP2PData(clean, riskProf.score <= 35 ? "Verified VASP Treasury" : "CoinDCX Nodal Vault", dynVol);
+      const p2p = deriveP2PData(clean, isMixer ? "Tornado.Cash Mixer" : isVasp ? "Verified VASP Treasury" : "CoinDCX Nodal Vault", dynVol);
       setP2pData(p2p);
 
-      const typs = deriveTypologies(riskProf.score, riskProf.score <= 35 ? "VASP" : "SUSPECT");
+      const typs = deriveTypologies(riskProf.score, dynCategory);
       setMuleProb(typs.mule);
       setRansomProb(typs.ransom);
       setDarknetProb(typs.darknet);
@@ -400,8 +404,8 @@ export default function ForensicDashboard() {
                 "font-family": "Outfit, sans-serif",
                 "text-valign": "bottom",
                 "text-margin-y": 8,
-                "background-color": "data(color)",
-                "border-color": "data(color)",
+                "background-color": "data(color_code)",
+                "border-color": "data(color_code)",
                 width: 38,
                 height: 38,
                 "border-width": 2,
@@ -413,29 +417,15 @@ export default function ForensicDashboard() {
                 width: 48,
                 height: 48,
                 "border-width": 3,
-                "background-color": "data(color)",
-                "border-color": "data(color)",
+                "background-color": "data(color_code)",
+                "border-color": "data(color_code)",
               },
             },
             {
-              selector: "node[risk_score <= 35], node[riskScore <= 35]",
+              selector: 'node[category = "WALLET"]',
               style: {
-                "background-color": "#10b981",
-                "border-color": "#10b981",
-              },
-            },
-            {
-              selector: "node[risk_score > 35][risk_score <= 70], node[riskScore > 35][riskScore <= 70]",
-              style: {
-                "background-color": "#f59e0b",
-                "border-color": "#f59e0b",
-              },
-            },
-            {
-              selector: "node[risk_score > 70], node[riskScore > 70]",
-              style: {
-                "background-color": "#ef4444",
-                "border-color": "#ef4444",
+                "background-color": "data(color_code)",
+                "border-color": "data(color_code)",
               },
             },
             {
@@ -446,7 +436,7 @@ export default function ForensicDashboard() {
               },
             },
             {
-              selector: 'node[category = "MULE_CLUSTER"]',
+              selector: "node[category = 'MULE_CLUSTER'], node[?is_mule_cluster]",
               style: {
                 shape: "round-rectangle",
                 width: 58,
@@ -456,11 +446,11 @@ export default function ForensicDashboard() {
               },
             },
             {
-              selector: "node[?is_breakpoint], node[category = 'MIXER_POOL']",
+              selector: "node[category = 'MIXER_POOL'], node[?is_breakpoint], node[risk_score = 100], node[riskScore = 100]",
               style: {
                 shape: "diamond",
-                width: 46,
-                height: 46,
+                width: 48,
+                height: 48,
                 "background-color": "#a855f7",
                 "border-color": "#a855f7",
               },
@@ -672,6 +662,32 @@ export default function ForensicDashboard() {
             setDarknetProb(typs.darknet);
           }
 
+          // Compute accurate total suspicious on-chain volume from all graph edges and mule clusters
+          let totalSuspiciousUsd = 0;
+          graphData.elements.forEach((el: any) => {
+            if (el.group === "edges" || (el.data && el.data.source && el.data.target)) {
+              const amt = parseFloat(el.data?.amount || 0);
+              const tok = String(el.data?.token || "USDT").toUpperCase();
+              let usdVal = amt;
+              if (tok === "ETH" || tok === "WETH") {
+                usdVal = amt * 2800.0;
+              } else if (tok === "BTC" || tok === "WBTC") {
+                usdVal = amt * 65000.0;
+              }
+              totalSuspiciousUsd += usdVal;
+            }
+          });
+
+          // Also account for collapsed mule clusters if any
+          const clusterNode = graphData.elements.find((el: any) => el.data && el.data.is_mule_cluster);
+          if (clusterNode && clusterNode.data?.cluster_data?.total_volume_usdt) {
+            totalSuspiciousUsd = Math.max(totalSuspiciousUsd, clusterNode.data.cluster_data.total_volume_usdt);
+          }
+
+          if (totalSuspiciousUsd <= 0) {
+            totalSuspiciousUsd = dynamicVol;
+          }
+
           // Extract VASP attribution
           const vaspNode = graphData.elements.find(
             (el: any) => el.data && (el.data.category === "VASP" || el.data.attribution?.vasp_name)
@@ -680,11 +696,10 @@ export default function ForensicDashboard() {
           const vName =
             vaspNode?.data?.attribution?.vasp_name ||
             vaspNode?.data?.label?.replace("VASP: ", "");
-          const newP2P = deriveP2PData(currentAddress, vName, dynamicVol);
+          const newP2P = deriveP2PData(currentAddress, vName, totalSuspiciousUsd);
           setP2pData(newP2P);
 
           // Extract Mule Cluster
-          const clusterNode = graphData.elements.find((el: any) => el.data && el.data.is_mule_cluster);
           if (clusterNode && clusterNode.data.cluster_data) {
             setSelectedCluster(clusterNode.data.cluster_data);
           } else {

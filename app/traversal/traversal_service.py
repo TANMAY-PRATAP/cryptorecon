@@ -64,17 +64,44 @@ class TraversalService:
         )
         mule_detector = MuleClusterDetector(split_threshold=request.mule_split_threshold)
 
-        # 1. Add Root Suspect Node (Hop 0) with dynamically calculated risk score
-        root_risk = self._calculate_address_risk(root_address, chain)
-        is_vasp_root = self.bloom.contains(root_address.lower(), chain)
-        graph_builder.add_wallet_node(
-            address=root_address,
-            blockchain=chain,
-            label=f"Suspect: {root_address[:6]}...{root_address[-4:]}",
-            risk_score=root_risk,
-            is_suspect=True,
-            hop_level=0
-        )
+        # 1. Add Root Suspect Node (Hop 0) with classification inspection
+        inspect_root = self.attributor.inspect_address(root_address, chain)
+        if (
+            inspect_root.evidence.get("protocol")
+            or "Tornado" in (inspect_root.attributed_vasp or "")
+            or "Mixer" in (inspect_root.attributed_vasp or "")
+            or root_address.lower() in (
+                "0x0769fd68dfb93167989c6f7254cd0d766fb2841f",
+                "0xd90e2f925da726b50c4ed8d0fb90ad053324f31b",
+                "0x910cbd523d972eb0a6f4cae4618ad62622b39dbf"
+            )
+        ):
+            graph_builder.add_mixer_node(
+                address=root_address,
+                mixer_protocol=inspect_root.evidence.get("protocol", "Tornado.Cash"),
+                blockchain=chain,
+                hop_level=0
+            )
+        elif inspect_root.attributed_vasp and inspect_root.attribution_tier != AttributionTier.UNATTRIBUTED:
+            graph_builder.add_vasp_node(
+                address=root_address,
+                vasp_name=inspect_root.attributed_vasp,
+                blockchain=chain,
+                entity_type=inspect_root.entity_type or "VASP_HOT_WALLET",
+                risk_score=15,
+                hop_level=0,
+                attribution_tier=inspect_root.attribution_tier.value
+            )
+        else:
+            root_risk = self._calculate_address_risk(root_address, chain)
+            graph_builder.add_wallet_node(
+                address=root_address,
+                blockchain=chain,
+                label=f"Suspect: {root_address[:6]}...{root_address[-4:]}",
+                risk_score=root_risk,
+                is_suspect=True,
+                hop_level=0
+            )
 
         visited_addresses: Set[str] = {root_address.lower()}
         current_layer: List[Dict[str, Any]] = [{
