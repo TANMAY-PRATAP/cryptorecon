@@ -1188,15 +1188,26 @@ export default function ForensicDashboard() {
               className="w-36 bg-transparent px-3.5 py-2 text-sm text-[#f8fafc] outline-none border-r border-[#334155]"
               placeholder="Complaint ID"
             />
-            <input
-              id="addressInput"
-              type="text"
-              value={suspectAddress}
-              onChange={(e) => handleAddressChange(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && executeTraversal()}
-              className="flex-1 bg-transparent px-3.5 py-2 text-sm text-[#f8fafc] outline-none font-mono"
-              placeholder="Enter Suspect Wallet Address (EVM 0x... or TRON T...)"
-            />
+            <div className="relative flex-1 flex items-center">
+              <input
+                id="addressInput"
+                type="text"
+                value={suspectAddress}
+                onChange={(e) => handleAddressChange(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && executeTraversal()}
+                className="w-full bg-transparent pl-3.5 pr-20 py-2 text-sm text-[#f8fafc] outline-none font-mono"
+                placeholder="Enter Suspect Wallet Address (EVM 0x... or TRON T...)"
+              />
+              <span className={`absolute right-3 text-[10px] font-mono px-1.5 py-0.5 rounded pointer-events-none ${
+                suspectAddress.trim().length === 42 
+                  ? "bg-emerald-500/20 text-emerald-400 font-semibold" 
+                  : suspectAddress.trim().length > 0 
+                  ? "bg-amber-500/20 text-amber-400 font-semibold" 
+                  : "text-[#64748b]"
+              }`}>
+                {suspectAddress.trim().length}/42 {suspectAddress.trim().length === 42 ? "✓" : "⚠️"}
+              </span>
+            </div>
             <select
               id="chainSelect"
               value={blockchain}
@@ -1229,8 +1240,43 @@ export default function ForensicDashboard() {
         </div>
       </header>
 
+      {/* Quick Demo Preset Chips Bar */}
+      <div className="bg-[#0b1120] border-b border-[#334155]/60 px-5 py-1.5 flex items-center gap-3 text-xs z-10">
+        <span className="text-[#64748b] font-semibold text-[11px] uppercase tracking-wider">Quick Presets:</span>
+        <button
+          onClick={() => {
+            const addr = "0x098B716B8Aaf21512996dC57EB0615e2383E2f96";
+            setSuspectAddress(addr);
+            handleAddressChange(addr);
+          }}
+          className="bg-[#1e293b] hover:bg-[#334155] text-sky-400 border border-sky-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1"
+        >
+          ⚡ Live Target: 0x098B...2f96 (7 Nodes)
+        </button>
+        <button
+          onClick={() => {
+            const addr = "0x28C6c06298d514Db089934071355E5743bf21d60";
+            setSuspectAddress(addr);
+            handleAddressChange(addr);
+          }}
+          className="bg-[#1e293b] hover:bg-[#334155] text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1"
+        >
+          🏢 Binance Vault: 0x28C6...1d60 (14 Nodes)
+        </button>
+        <button
+          onClick={() => {
+            const addr = "0x71C2e36675B8B1Fc2ffDa6112dE9C1C90D218976";
+            setSuspectAddress(addr);
+            handleAddressChange(addr);
+          }}
+          className="bg-[#1e293b] hover:bg-[#334155] text-orange-400 border border-orange-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1"
+        >
+          ⚖️ NCRP-2026 Sample Case
+        </button>
+      </div>
+
       {/* Main Workspace */}
-      <main className="flex flex-1 relative h-[calc(100vh-64px)]">
+      <main className="flex flex-1 relative h-[calc(100vh-100px)]">
         {/* Canvas Area */}
         <div className="flex-1 relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#111827] to-[#090d16]">
           {/* Canvas Toolbar */}
