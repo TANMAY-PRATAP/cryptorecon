@@ -98,3 +98,26 @@ class TronGridClient:
             pass
 
         return results
+
+    async def get_wallet_outflows(
+        self,
+        wallet_address: str,
+        limit: int = 25
+    ) -> List[Dict[str, Any]]:
+        """Fetch real TRC-20 and TRX outflows for a TRON suspect wallet."""
+        transfers = await self.get_trc20_transfers(wallet_address, limit=limit)
+        outflows: List[Dict[str, Any]] = []
+        clean_addr = wallet_address.strip()
+        
+        for t in transfers:
+            if t.from_address.lower() == clean_addr.lower() and t.to_address:
+                outflows.append({
+                    "to_address": t.to_address,
+                    "amount": round(t.amount_normalized, 2),
+                    "token": t.token_symbol,
+                    "tx_hash": t.tx_id,
+                    "timestamp_utc": t.block_timestamp_ms // 1000 if t.block_timestamp_ms else None,
+                    "gas_funder": None
+                })
+        
+        return outflows

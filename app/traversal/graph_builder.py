@@ -71,6 +71,7 @@ class ForensicGraphBuilder:
             color_code=color,
             is_breakpoint=False,
             is_mule_cluster=False,
+            is_suspect=is_suspect,
             hop_level=hop_level,
             attribution=attribution
         )

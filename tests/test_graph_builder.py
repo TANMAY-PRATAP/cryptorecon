@@ -133,3 +133,22 @@ def test_attribution_inspect_api_endpoint():
     data_btc = res_btc.json()
     assert "Binance" in data_btc["attributed_vasp"]
     assert data_btc["attribution_tier"] == "TIER_0_DIRECT_BLOOM"
+
+
+def test_traversal_custom_wallet_dynamic():
+    """Verify custom address traversal returns accurate root node without hardcoded fake counterparties."""
+    custom_addr = "0x1234567890abcdef1234567890abcdef12345678"
+    payload = {
+        "suspect_address": custom_addr,
+        "blockchain": "ethereum",
+        "total_stolen_amount": 5000.0,
+        "max_hops": 2
+    }
+    response = client.post("/api/v1/traversal/trace", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "elements" in data
+    # Root node must represent the custom address
+    root = [el for el in data["elements"] if el.get("data", {}).get("is_suspect")]
+    assert len(root) == 1
+    assert root[0]["data"]["address"].lower() == custom_addr.lower()

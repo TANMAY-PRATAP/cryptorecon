@@ -92,7 +92,7 @@ class TraversalRequest(BaseModel):
     suspect_address: str
     blockchain: str = "ethereum"
     token_contract: str = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-    incident_timestamp_utc: datetime
+    incident_timestamp_utc: datetime = Field(default_factory=datetime.utcnow)
     total_stolen_amount: float = 10000.0
     max_hops: int = Field(default=4, ge=1, le=8)
     cfr_min_floor_usdt: float = 50.0

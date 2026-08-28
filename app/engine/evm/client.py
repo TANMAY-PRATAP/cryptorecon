@@ -84,7 +84,7 @@ class EVMClient:
 
         transfers = []
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=8.0) as client:
                 res = await client.post(self.rpc_url, json=payload_out)
                 data = res.json()
                 if "result" in data and isinstance(data["result"], list):
@@ -96,3 +96,123 @@ class EVMClient:
             pass
 
         return transfers
+
+    async def get_wallet_outflows(
+        self,
+        wallet_address: str,
+        etherscan_api_key: Optional[str] = None,
+        limit: int = 25
+    ) -> List[Dict[str, Any]]:
+        """Fetch actual on-chain outgoing transactions for a wallet using Etherscan API and Alchemy RPC."""
+        clean_addr = wallet_address.lower()
+        outflows: List[Dict[str, Any]] = []
+        seen_txs: set = set()
+
+        # 1. Try Etherscan API (ERC-20 Token Transfers)
+        if etherscan_api_key:
+            try:
+                url = "https://api.etherscan.io/api"
+                params = {
+                    "module": "account",
+                    "action": "tokentx",
+                    "address": clean_addr,
+                    "page": 1,
+                    "offset": limit,
+                    "sort": "desc",
+                    "apikey": etherscan_api_key
+                }
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    res = await client.get(url, params=params)
+                    if res.status_code == 200:
+                        data = res.json()
+                        for tx in data.get("result", []):
+                            if isinstance(tx, dict) and tx.get("from", "").lower() == clean_addr:
+                                tx_hash = tx.get("hash", "")
+                                if tx_hash not in seen_txs:
+                                    seen_txs.add(tx_hash)
+                                    decimals = int(tx.get("tokenDecimal") or 6)
+                                    val = float(tx.get("value", 0)) / (10 ** decimals)
+                                    to_addr = tx.get("to", "")
+                                    outflows.append({
+                                        "to_address": to_addr,
+                                        "amount": round(val, 2),
+                                        "token": tx.get("tokenSymbol", "USDT"),
+                                        "tx_hash": tx_hash,
+                                        "timestamp_utc": tx.get("timeStamp"),
+                                        "gas_funder": None
+                                    })
+            except Exception:
+                pass
+
+            # Try Etherscan Normal ETH Transactions if needed
+            if len(outflows) < limit:
+                try:
+                    params_eth = {
+                        "module": "account",
+                        "action": "txlist",
+                        "address": clean_addr,
+                        "page": 1,
+                        "offset": limit,
+                        "sort": "desc",
+                        "apikey": etherscan_api_key
+                    }
+                    async with httpx.AsyncClient(timeout=8.0) as client:
+                        res = await client.get("https://api.etherscan.io/api", params=params_eth)
+                        if res.status_code == 200:
+                            data = res.json()
+                            for tx in data.get("result", []):
+                                if isinstance(tx, dict) and tx.get("from", "").lower() == clean_addr:
+                                    tx_hash = tx.get("hash", "")
+                                    if tx_hash not in seen_txs:
+                                        seen_txs.add(tx_hash)
+                                        val = float(tx.get("value", 0)) / 1e18
+                                        to_addr = tx.get("to", "")
+                                        if to_addr:
+                                            outflows.append({
+                                                "to_address": to_addr,
+                                                "amount": round(val, 4),
+                                                "token": "ETH",
+                                                "tx_hash": tx_hash,
+                                                "timestamp_utc": tx.get("timeStamp"),
+                                                "gas_funder": None
+                                            })
+                except Exception:
+                    pass
+
+        # 2. Try Alchemy Asset Transfers API if RPC is Alchemy
+        if not outflows and "alchemy.com" in self.rpc_url:
+            try:
+                payload = {
+                    "id": 1,
+                    "jsonrpc": "2.0",
+                    "method": "alchemy_getAssetTransfers",
+                    "params": [{
+                        "fromBlock": "0x0",
+                        "toBlock": "latest",
+                        "fromAddress": clean_addr,
+                        "category": ["external", "erc20"],
+                        "maxCount": hex(limit),
+                        "order": "desc"
+                    }]
+                }
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    res = await client.post(self.rpc_url, json=payload)
+                    if res.status_code == 200:
+                        data = res.json()
+                        for item in data.get("result", {}).get("transfers", []):
+                            to_addr = item.get("to")
+                            val = float(item.get("value") or 0.0)
+                            tx_h = item.get("hash", "")
+                            if to_addr and tx_h not in seen_txs:
+                                seen_txs.add(tx_h)
+                                outflows.append({
+                                    "to_address": to_addr,
+                                    "amount": round(val, 2),
+                                    "token": item.get("asset") or "USDT",
+                                    "tx_hash": tx_h,
+                                    "gas_funder": None
+                                })
+            except Exception:
+                pass
+
+        return outflows

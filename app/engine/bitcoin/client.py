@@ -98,3 +98,37 @@ class BitcoinClient:
         except Exception:
             pass
         return txs
+
+    async def get_wallet_outflows(
+        self,
+        wallet_address: str,
+        limit: int = 25
+    ) -> List[Dict[str, Any]]:
+        """Fetch real on-chain UTXO spend destinations for a Bitcoin address."""
+        txs = await self.get_address_txs(wallet_address)
+        outflows: List[Dict[str, Any]] = []
+        clean_addr = wallet_address.strip()
+
+        for tx in txs[:limit]:
+            # Check if this address spent funds (was in inputs)
+            is_sender = any(
+                inp.prevout_address and inp.prevout_address.lower() == clean_addr.lower()
+                for inp in tx.inputs
+            )
+            if is_sender:
+                for out in tx.outputs:
+                    # Ignore change returning to self
+                    if out.address and out.address.lower() != clean_addr.lower():
+                        val_btc = out.value_satoshis / 1e8
+                        # Convert approx satoshis to USD/USDT (at ~65,000 / BTC standard exchange benchmark)
+                        val_usdt = round(val_btc * 65000.0, 2)
+                        outflows.append({
+                            "to_address": out.address,
+                            "amount": val_usdt,
+                            "token": "BTC",
+                            "tx_hash": tx.txid,
+                            "timestamp_utc": tx.block_time if tx.block_time else None,
+                            "gas_funder": None
+                        })
+
+        return outflows
