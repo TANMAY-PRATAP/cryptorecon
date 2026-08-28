@@ -29,8 +29,8 @@ class Settings(BaseSettings):
 
     # Redis Configuration
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    REDIS_ENABLED: bool = True
-    REDIS_TIMEOUT_SECONDS: int = 5
+    REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "true").lower() in ("true", "1") and not bool(os.getenv("VERCEL"))
+    REDIS_TIMEOUT_SECONDS: int = 1
 
     # Multi-Chain RPC Providers
     ETH_RPC_URL: str = os.getenv("ETH_RPC_URL", "https://eth.llamarpc.com")
