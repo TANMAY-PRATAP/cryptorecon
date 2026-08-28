@@ -19,23 +19,9 @@ router = APIRouter(tags=["Forensic Traversal & Attribution"])
     status_code=status.HTTP_200_OK,
     summary="Execute multi-hop traversal with CFR dynamic pruning"
 )
-@router.post(
-    "/traversal",
-    response_model=CytoscapeGraphResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Alias for /traversal/trace"
-)
-@router.get(
-    "/traversal",
-    summary="Health check for traversal endpoint"
-)
-@router.get(
-    "/traversal/trace",
-    summary="Health check for traversal/trace endpoint"
-)
 async def trace_fund_flow(
-    request: Optional[TraversalRequest] = None
-) -> Any:
+    request: TraversalRequest
+) -> CytoscapeGraphResponse:
     """Execute multi-hop on-chain forensic traversal.
     
     1. Traverses up to max_hops from suspect address.
@@ -44,8 +30,6 @@ async def trace_fund_flow(
     4. Applies Dual-Stack VASP Attribution at each hop.
     5. Returns Cytoscape.js compatible graph elements.
     """
-    if request is None:
-        return {"status": "ok", "service": "Forensic Traversal Engine", "usage": "POST /api/v1/traversal/trace with TraversalRequest payload"}
     service = TraversalService()
     try:
         return await service.trace_case(request)

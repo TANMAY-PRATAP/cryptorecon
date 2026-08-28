@@ -90,8 +90,6 @@ def create_application() -> FastAPI:
 
     # Mount API Routers
     app.include_router(api_v1_router, prefix=settings.API_V1_STR)
-    app.include_router(api_v1_router, prefix="/v1")
-    app.include_router(api_v1_router, prefix="")
 
     @app.get("/dashboard", response_class=HTMLResponse, tags=["Dashboard"])
     async def dashboard():
