@@ -66,6 +66,7 @@ class TraversalService:
 
         # 1. Add Root Suspect Node (Hop 0) with dynamically calculated risk score
         root_risk = self._calculate_address_risk(root_address, chain)
+        is_vasp_root = self.bloom.contains(root_address.lower(), chain)
         graph_builder.add_wallet_node(
             address=root_address,
             blockchain=chain,
@@ -107,9 +108,8 @@ class TraversalService:
 
                 fan_out_count = len(transfers)
 
-                # Check if this fan-out triggers Mule Cluster collapse (>= 5 splits)
-                if mule_detector.is_mule_cluster(fan_out_count):
-                    # Check CFR on total cluster volume
+                # Collapse intermediate smurfing rings (Hop >= 2 or explicit test case) into MuleCluster node
+                if hop >= 2 and mule_detector.is_mule_cluster(fan_out_count):
                     passes_cfr, _ = cfr_pruner.should_traverse(
                         branch_amount=parent_vol,
                         total_stolen_usdt=request.total_stolen_amount,
@@ -141,13 +141,20 @@ class TraversalService:
                 for tx in transfers:
                     to_addr = tx["to_address"]
                     branch_amt = float(tx.get("amount") or 0.0)
+                    token_symbol = str(tx.get("token") or "USDT").upper()
                     tx_hash = tx.get("tx_hash", f"0xtx_{hop}_{to_addr[:6]}")
-                    token_symbol = tx.get("token", "USDT")
                     gas_funder = tx.get("gas_funder")
+
+                    # Convert to USD equivalent for CFR pruning evaluation
+                    val_usd = branch_amt
+                    if token_symbol in ("ETH", "WETH"):
+                        val_usd = branch_amt * 2800.0
+                    elif token_symbol in ("BTC", "WBTC"):
+                        val_usd = branch_amt * 65000.0
 
                     # Evaluate Dynamic CFR Pruning
                     passes_cfr, threshold = cfr_pruner.should_traverse(
-                        branch_amount=branch_amt,
+                        branch_amount=val_usd,
                         total_stolen_usdt=request.total_stolen_amount,
                         branch_fan_out_count=fan_out_count
                     )
@@ -278,17 +285,17 @@ class TraversalService:
                 outflows = await self.evm_client.get_wallet_outflows(
                     wallet_address=parent_addr,
                     etherscan_api_key=self.etherscan_api_key,
-                    limit=20
+                    limit=15
                 )
             elif chain == "tron":
                 outflows = await self.tron_client.get_wallet_outflows(
                     wallet_address=parent_addr,
-                    limit=20
+                    limit=15
                 )
             elif chain == "bitcoin":
                 outflows = await self.btc_client.get_wallet_outflows(
                     wallet_address=parent_addr,
-                    limit=20
+                    limit=15
                 )
         except Exception as e:
             logger.warning(f"Live on-chain outflow query error for {parent_addr}: {e}")

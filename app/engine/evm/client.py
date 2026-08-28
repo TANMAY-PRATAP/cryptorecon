@@ -2,7 +2,10 @@
 
 from typing import List, Dict, Any, Optional
 import httpx
+import logging
 from pydantic import BaseModel
+
+logger = logging.getLogger("cryptorecon.evm")
 
 # Transfer(address,address,uint256) topic
 ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -32,15 +35,12 @@ class EVMClient:
             return None
 
         try:
-            # Topic 1: from address (32 bytes padded)
             from_raw = topics[1]
             from_addr = "0x" + from_raw[-40:]
 
-            # Topic 2: to address (32 bytes padded)
             to_raw = topics[2]
             to_addr = "0x" + to_raw[-40:]
 
-            # Data: value (uint256 hex)
             data_hex = log.get("data", "0x0")
             if data_hex.startswith("0x"):
                 data_hex = data_hex[2:]
@@ -69,7 +69,6 @@ class EVMClient:
         """Fetch and decode ERC-20 transfer logs for a suspect wallet."""
         padded_addr = "0x" + wallet_address.lower().replace("0x", "").zfill(64)
         
-        # Outflow transfers
         payload_out = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -84,7 +83,7 @@ class EVMClient:
 
         transfers = []
         try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as client:
                 res = await client.post(self.rpc_url, json=payload_out)
                 data = res.json()
                 if "result" in data and isinstance(data["result"], list):
@@ -92,8 +91,8 @@ class EVMClient:
                         decoded = self.parse_transfer_log(raw_log)
                         if decoded:
                             transfers.append(decoded)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"eth_getLogs error: {e}")
 
         return transfers
 
@@ -101,14 +100,14 @@ class EVMClient:
         self,
         wallet_address: str,
         etherscan_api_key: Optional[str] = None,
-        limit: int = 25
+        limit: int = 15
     ) -> List[Dict[str, Any]]:
-        """Fetch actual on-chain outgoing transactions for a wallet using Etherscan API and Alchemy RPC."""
-        clean_addr = wallet_address.lower()
+        """Fetch actual on-chain outgoing transactions for a wallet with multi-source fallback."""
+        clean_addr = wallet_address.strip().lower()
         outflows: List[Dict[str, Any]] = []
         seen_txs: set = set()
 
-        # 1. Try Etherscan API (ERC-20 Token Transfers)
+        # 1. Primary: Etherscan Token Transfers (tokentx)
         if etherscan_api_key:
             try:
                 url = "https://api.etherscan.io/api"
@@ -121,30 +120,31 @@ class EVMClient:
                     "sort": "desc",
                     "apikey": etherscan_api_key
                 }
-                async with httpx.AsyncClient(timeout=8.0) as client:
+                async with httpx.AsyncClient(timeout=5.0) as client:
                     res = await client.get(url, params=params)
                     if res.status_code == 200:
                         data = res.json()
-                        for tx in data.get("result", []):
-                            if isinstance(tx, dict) and tx.get("from", "").lower() == clean_addr:
-                                tx_hash = tx.get("hash", "")
-                                if tx_hash not in seen_txs:
-                                    seen_txs.add(tx_hash)
-                                    decimals = int(tx.get("tokenDecimal") or 6)
-                                    val = float(tx.get("value", 0)) / (10 ** decimals)
+                        if data.get("status") == "1" and isinstance(data.get("result"), list):
+                            for tx in data["result"]:
+                                if isinstance(tx, dict) and tx.get("from", "").lower() == clean_addr:
+                                    tx_hash = tx.get("hash", "")
                                     to_addr = tx.get("to", "")
-                                    outflows.append({
-                                        "to_address": to_addr,
-                                        "amount": round(val, 2),
-                                        "token": tx.get("tokenSymbol", "USDT"),
-                                        "tx_hash": tx_hash,
-                                        "timestamp_utc": tx.get("timeStamp"),
-                                        "gas_funder": None
-                                    })
-            except Exception:
-                pass
+                                    if tx_hash not in seen_txs and to_addr:
+                                        seen_txs.add(tx_hash)
+                                        decimals = int(tx.get("tokenDecimal") or 6)
+                                        val = float(tx.get("value", 0)) / (10 ** decimals)
+                                        outflows.append({
+                                            "to_address": to_addr,
+                                            "amount": round(val, 2),
+                                            "token": tx.get("tokenSymbol", "USDT"),
+                                            "tx_hash": tx_hash,
+                                            "timestamp_utc": tx.get("timeStamp"),
+                                            "gas_funder": None
+                                        })
+            except Exception as e:
+                logger.debug(f"Etherscan tokentx error: {e}")
 
-            # Try Etherscan Normal ETH Transactions if needed
+            # Etherscan Normal ETH Transactions (txlist)
             if len(outflows) < limit:
                 try:
                     params_eth = {
@@ -156,31 +156,31 @@ class EVMClient:
                         "sort": "desc",
                         "apikey": etherscan_api_key
                     }
-                    async with httpx.AsyncClient(timeout=8.0) as client:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
                         res = await client.get("https://api.etherscan.io/api", params=params_eth)
                         if res.status_code == 200:
                             data = res.json()
-                            for tx in data.get("result", []):
-                                if isinstance(tx, dict) and tx.get("from", "").lower() == clean_addr:
-                                    tx_hash = tx.get("hash", "")
-                                    if tx_hash not in seen_txs:
-                                        seen_txs.add(tx_hash)
-                                        val = float(tx.get("value", 0)) / 1e18
+                            if data.get("status") == "1" and isinstance(data.get("result"), list):
+                                for tx in data["result"]:
+                                    if isinstance(tx, dict) and tx.get("from", "").lower() == clean_addr:
+                                        tx_hash = tx.get("hash", "")
                                         to_addr = tx.get("to", "")
-                                        if to_addr:
+                                        if tx_hash not in seen_txs and to_addr:
+                                            seen_txs.add(tx_hash)
+                                            val_eth = float(tx.get("value", 0)) / 1e18
                                             outflows.append({
                                                 "to_address": to_addr,
-                                                "amount": round(val, 4),
+                                                "amount": round(val_eth, 4),
                                                 "token": "ETH",
                                                 "tx_hash": tx_hash,
                                                 "timestamp_utc": tx.get("timeStamp"),
                                                 "gas_funder": None
                                             })
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Etherscan txlist error: {e}")
 
-        # 2. Try Alchemy Asset Transfers API if RPC is Alchemy
-        if not outflows and "alchemy.com" in self.rpc_url:
+        # 2. Secondary Fallback: Alchemy Asset Transfers API
+        if len(outflows) < 3 and "alchemy.com" in self.rpc_url:
             try:
                 payload = {
                     "id": 1,
@@ -195,7 +195,7 @@ class EVMClient:
                         "order": "desc"
                     }]
                 }
-                async with httpx.AsyncClient(timeout=8.0) as client:
+                async with httpx.AsyncClient(timeout=5.0) as client:
                     res = await client.post(self.rpc_url, json=payload)
                     if res.status_code == 200:
                         data = res.json()
@@ -212,7 +212,7 @@ class EVMClient:
                                     "tx_hash": tx_h,
                                     "gas_funder": None
                                 })
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Alchemy getAssetTransfers fallback error: {e}")
 
-        return outflows
+        return outflows[:limit]
