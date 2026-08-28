@@ -1193,6 +1193,7 @@ export default function ForensicDashboard() {
               type="text"
               value={suspectAddress}
               onChange={(e) => handleAddressChange(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && executeTraversal()}
               className="flex-1 bg-transparent px-3.5 py-2 text-sm text-[#f8fafc] outline-none font-mono"
               placeholder="Enter Suspect Wallet Address (EVM 0x... or TRON T...)"
             />
