@@ -94,7 +94,17 @@ const BENEFICIARY_NAMES = [
   "Ankit Bishnoi",
   "Ramesh K. Yadav",
   "Deepak Singhania",
-  "Manoj Kumar Sharma"
+  "Manoj Kumar Sharma",
+  "Harsh Vardhan Aggarwal",
+  "Priyanka Deshmukh",
+  "Gaurav Mukherjee",
+  "Rohit K. Meena",
+  "Siddharth Chawla",
+  "Kavita Nambiar",
+  "Naveen Goswami",
+  "Alok Tiwari",
+  "Divya Swaminathan",
+  "Tanmay Saxena"
 ];
 
 const BANK_TEMPLATES = [
@@ -102,7 +112,10 @@ const BANK_TEMPLATES = [
   { bank: "ICICI Bank Ltd", ifscPrefix: "ICIC000", handle: "okicici" },
   { bank: "State Bank of India", ifscPrefix: "SBIN000", handle: "oksbi" },
   { bank: "Axis Bank Ltd", ifscPrefix: "UTIB000", handle: "okaxis" },
-  { bank: "Kotak Mahindra Bank", ifscPrefix: "KKBK000", handle: "paytm" }
+  { bank: "Kotak Mahindra Bank", ifscPrefix: "KKBK000", handle: "paytm" },
+  { bank: "Punjab National Bank", ifscPrefix: "PUNB000", handle: "pnb" },
+  { bank: "Bank of Baroda", ifscPrefix: "BARB000", handle: "barodampay" },
+  { bank: "IndusInd Bank", ifscPrefix: "INDB000", handle: "indus" }
 ];
 
 function calculateDynamicRiskScore(
@@ -141,40 +154,27 @@ function calculateDynamicRiskScore(
     };
   }
 
-  // 2. Mixer / Breakpoint -> Neon Purple #a855f7
+  // 2. Mixer Pool or Sanctioned Entity -> Purple #a855f7
   if (
     category === "MIXER_POOL" ||
     vasp.includes("tornado") ||
-    vasp.includes("railgun") ||
-    vasp.includes("justcrypt")
+    vasp.includes("mixer") ||
+    clean.includes("0x0769fd68dfb93167989c6f7254cd0d766fb2841f")
   ) {
-    const score = 96 + (seed % 4);
     return {
-      score,
-      tier: "CRITICAL BREAKPOINT",
+      score: 100,
+      tier: "CRYPTOGRAPHIC BREAKPOINT",
       color: "#a855f7",
       badgeBg: "bg-purple-500/20",
       badgeText: "text-purple-400",
     };
   }
 
-  // 3. Mule Cluster or Mule Member -> Orange #f97316
-  if (category === "MULE_CLUSTER" || category === "MULE_WALLET" || vasp.includes("mule")) {
-    const score = 78 + (seed % 16);
-    return {
-      score,
-      tier: "HIGH FRAUD RISK",
-      color: "#f97316",
-      badgeBg: "bg-orange-500/20",
-      badgeText: "text-orange-400",
-    };
-  }
-
-  // 4. General Suspect Address: determine profile dynamically from address hash
+  // 3. Dynamic Calculation based on cryptographic hash
   const tierBucket = seed % 10;
   if (tierBucket <= 1) {
     // Low Risk Peer -> Emerald Green #10b981
-    const score = 15 + (seed % 14);
+    const score = 18 + (seed % 12);
     return {
       score,
       tier: "LOW RISK PEER",
@@ -233,7 +233,9 @@ function deriveP2PData(address: string, vaspName?: string, stolenUsdt: number = 
   const ifscCode = `${bankInfo.ifscPrefix}${String(1000 + (seed % 9000))}`;
   const firstName = name.split(" ")[0].toLowerCase();
   const upiId = `${firstName}.p2p${(seed % 99) + 10}@${bankInfo.handle}`;
-  const inrAmount = Math.round((stolenUsdt || 15000) * 90);
+  
+  const dynamicUsdt = stolenUsdt > 0 ? stolenUsdt : (4500 + (seed % 35000));
+  const inrAmount = Math.round(dynamicUsdt * 90.25);
 
   return {
     vasp: vaspName || "CoinDCX Nodal Vault",
