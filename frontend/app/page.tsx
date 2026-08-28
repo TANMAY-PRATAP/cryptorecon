@@ -675,11 +675,13 @@ export default function ForensicDashboard() {
           }
         }
       } else {
-        loadDynamicFallbackTopology(currentAddress, blockchain, dynamicVol);
+        const errText = await res.text();
+        console.error(`Backend Traversal API Error [HTTP ${res.status}]:`, errText);
+        alert(`Forensic Traversal Engine returned HTTP ${res.status}: ${errText.slice(0, 120)}`);
       }
-    } catch {
-      console.warn("Backend offline; loading topology for address:", currentAddress);
-      loadDynamicFallbackTopology(currentAddress, blockchain, dynamicVol);
+    } catch (err: any) {
+      console.error("Backend Traversal API Fetch Failure:", err);
+      alert(`Network Error: Failed to connect to Traversal API (${err.message})`);
     } finally {
       setLoading(false);
     }
