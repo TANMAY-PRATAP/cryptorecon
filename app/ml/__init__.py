@@ -34,6 +34,28 @@ class RiskEngine:
         """Run complete AI/ML inference pipeline on suspect wallet."""
         t0 = time.perf_counter()
 
+        # 0. Check for empty/inactive wallets with 0 transactions
+        if not transactions or len(transactions) == 0:
+            latency_ms = (time.perf_counter() - t0) * 1000.0
+            return RiskScoringResponse(
+                address=address,
+                blockchain=blockchain,
+                risk_score=15,
+                risk_tier="LOW_RISK",
+                primary_typology=TypologyType.DIRECT_PAYMENT,
+                typology_probabilities={
+                    TypologyType.DIRECT_PAYMENT.value: 100,
+                    TypologyType.MULE_SMURFING.value: 0,
+                    TypologyType.RANSOMWARE.value: 0,
+                    TypologyType.DARKNET_MARKET.value: 0
+                },
+                extracted_features=self.feature_extractor.extract_from_transactions(address, []),
+                top_risk_factors=["INACTIVE_ZERO_ACTIVITY_WALLET"],
+                inference_latency_ms=round(latency_ms, 3),
+                is_breakpoint=False,
+                recommended_action="NO_IMMEDIATE_ACTION"
+            )
+
         # 1. Feature Extraction (14 Dimensions)
         features = self.feature_extractor.extract_from_transactions(
             target_address=address,

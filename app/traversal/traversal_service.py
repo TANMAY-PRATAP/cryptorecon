@@ -9,6 +9,7 @@ from app.schemas.traversal import (
     TraversalRequest,
     CytoscapeGraphResponse,
     AttributionTier,
+    NodeCategory,
 )
 from app.traversal.cfr_engine import CFRPruner, MuleClusterDetector
 from app.traversal.graph_builder import ForensicGraphBuilder
@@ -253,6 +254,23 @@ class TraversalService:
                     )
 
             current_layer = next_layer
+
+        # Explicit check for empty/inactive wallets (0 edges on graph)
+        if len(graph_builder.graph.edges) == 0 and len(graph_builder.graph.nodes) == 1:
+            root_id = root_address.lower()
+            if root_id in graph_builder.graph.nodes:
+                root_node_data = graph_builder.graph.nodes[root_id]
+                if root_node_data.get("category") in (NodeCategory.SUSPECT.value, NodeCategory.WALLET.value):
+                    root_node_data["risk_score"] = 15
+                    root_node_data["color_code"] = "#10b981"
+                    root_node_data["color"] = "#10b981"
+                    root_node_data["category"] = "CLEAN_INACTIVE"
+                    root_node_data["label"] = f"Clean/Inactive: {root_address[:6]}...{root_address[-4:]}"
+                    root_node_data["attribution"] = {
+                        "status": "CLEAN_INACTIVE",
+                        "description": "Zero on-chain activity detected",
+                        "typology": {"Clean Peer": 100, "Mule Ring": 0, "Ransomware": 0, "Darknet": 0}
+                    }
 
         return graph_builder.to_cytoscape_json()
 

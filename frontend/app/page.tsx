@@ -127,6 +127,17 @@ function calculateDynamicRiskScore(
   const vasp = (vaspName || "").toLowerCase();
   const seed = hashString(clean);
 
+  // 0. Explicit Clean / Inactive Zero-Activity Wallets -> Emerald Green #10b981
+  if (category === "CLEAN_INACTIVE") {
+    return {
+      score: 15,
+      tier: "CLEAN / INACTIVE WALLET",
+      color: "#10b981",
+      badgeBg: "bg-emerald-500/20",
+      badgeText: "text-emerald-400",
+    };
+  }
+
   // 1. Known VASP, Hot Vault, Exchange, or Treasury -> Blue #3b82f6 matching Legend
   const isKnownVasp =
     category === "VASP" ||
@@ -247,7 +258,13 @@ function deriveP2PData(address: string, vaspName?: string, totalUSD: number = 0)
 }
 
 function deriveTypologies(riskScore: number, category: string) {
-  if (category === "MIXER_POOL" || riskScore >= 95) {
+  if (category === "CLEAN_INACTIVE" || (riskScore <= 15 && category !== "MIXER_POOL" && category !== "VASP")) {
+    return {
+      mule: 0,
+      ransom: 0,
+      darknet: 0
+    };
+  } else if (category === "MIXER_POOL" || riskScore >= 95) {
     return {
       mule: 15,
       ransom: 75,
@@ -426,6 +443,13 @@ export default function ForensicDashboard() {
               style: {
                 "background-color": "data(color_code)",
                 "border-color": "data(color_code)",
+              },
+            },
+            {
+              selector: "node[category = 'CLEAN_INACTIVE']",
+              style: {
+                "background-color": "#10b981",
+                "border-color": "#10b981",
               },
             },
             {
@@ -639,35 +663,14 @@ export default function ForensicDashboard() {
                   el.data.id?.toLowerCase() === currentAddress.toLowerCase())
             ) || graphData.elements[0];
 
-          if (rootNode && rootNode.data) {
-            const riskProf = calculateDynamicRiskScore(
-              rootNode.data.address || currentAddress,
-              rootNode.data.category || "SUSPECT",
-              rootNode.data.attribution?.vasp_name
-            );
-            const enrichedScore = rootNode.data.risk_score ?? rootNode.data.riskScore ?? riskProf.score;
-            const enrichedColor = rootNode.data.color_code || rootNode.data.color || riskProf.color;
-            const enrichedRoot = {
-              ...rootNode.data,
-              risk_score: enrichedScore,
-              riskScore: enrichedScore,
-              color_code: enrichedColor,
-              color: enrichedColor,
-            };
-            setSelectedNode(enrichedRoot);
-
-            const typs = deriveTypologies(enrichedRoot.risk_score, enrichedRoot.category);
-            setMuleProb(typs.mule);
-            setRansomProb(typs.ransom);
-            setDarknetProb(typs.darknet);
-          }
-
           // Compute accurate total suspicious on-chain volume from all graph edges and mule clusters
           let totalSuspiciousUsd = 0;
+          let totalEdges = 0;
           if (Array.isArray(graphData.elements)) {
             graphData.elements.forEach((el: any) => {
               const d = el.data || el;
               if (d.source && d.target) {
+                totalEdges++;
                 if (d.amount_usd) {
                   totalSuspiciousUsd += Number(d.amount_usd);
                 } else if (d.amount) {
@@ -701,6 +704,37 @@ export default function ForensicDashboard() {
                 totalSuspiciousUsd = Math.max(totalSuspiciousUsd, Number(d.cluster_data.total_volume_usdt));
               }
             });
+          }
+
+          if (rootNode && rootNode.data) {
+            const clean = currentAddress.toLowerCase();
+            const isMixer = clean === "0x0769fd68dfb93167989c6f7254cd0d766fb2841f" || rootNode.data.category === "MIXER_POOL";
+            const isVasp = rootNode.data.category === "VASP" || rootNode.data.attribution?.vasp_name;
+            const isZeroActivity = totalEdges === 0 && !isMixer && !isVasp;
+
+            const dynCategory = isZeroActivity ? "CLEAN_INACTIVE" : (rootNode.data.category || "SUSPECT");
+            const riskProf = calculateDynamicRiskScore(
+              rootNode.data.address || currentAddress,
+              dynCategory,
+              rootNode.data.attribution?.vasp_name
+            );
+            const enrichedScore = isZeroActivity ? 15 : (rootNode.data.risk_score ?? rootNode.data.riskScore ?? riskProf.score);
+            const enrichedColor = isZeroActivity ? "#10b981" : (rootNode.data.color_code || rootNode.data.color || riskProf.color);
+            const enrichedRoot = {
+              ...rootNode.data,
+              category: dynCategory,
+              risk_score: enrichedScore,
+              riskScore: enrichedScore,
+              color_code: enrichedColor,
+              color: enrichedColor,
+              label: isZeroActivity ? `Clean/Inactive: ${currentAddress.slice(0, 6)}...${currentAddress.slice(-4)}` : (rootNode.data.label || `Suspect: ${currentAddress.slice(0, 6)}...${currentAddress.slice(-4)}`),
+            };
+            setSelectedNode(enrichedRoot);
+
+            const typs = deriveTypologies(enrichedRoot.risk_score, enrichedRoot.category);
+            setMuleProb(typs.mule);
+            setRansomProb(typs.ransom);
+            setDarknetProb(typs.darknet);
           }
 
           totalSeizureUSDRef.current = totalSuspiciousUsd;
