@@ -24,10 +24,6 @@ python-dotenv>=1.0.1
 networkx>=3.2.1
 numpy>=1.26.0
 
-# Inverted Bloom Filter & High-Performance Hashing
-mmh3>=4.1.0; sys_platform != 'win32'
-bitarray>=2.9.2; sys_platform != 'win32'
-
 # Testing & Quality Assurance
 pytest>=8.2.0
 pytest-asyncio>=0.23.0
