@@ -379,6 +379,9 @@ export default function ForensicDashboard() {
     } else if (clean.startsWith("1") || clean.startsWith("3") || clean.toLowerCase().startsWith("bc1")) {
       detectedChain = "bitcoin";
       setBlockchain("bitcoin");
+    } else if (clean.startsWith("D") || clean.startsWith("d")) {
+      detectedChain = "dogecoin";
+      setBlockchain("dogecoin");
     }
 
     if (clean.length >= 4) {
@@ -618,6 +621,11 @@ export default function ForensicDashboard() {
         alert("⚠️ Invalid Bitcoin Address Format!\n\nPlease enter a valid Bitcoin address (e.g. bc1q... or 1N...).");
         return;
       }
+    } else if (blockchain === "dogecoin") {
+      if (!currentAddress.startsWith("D") && !currentAddress.startsWith("d")) {
+        alert("⚠️ Invalid Dogecoin Address Format!\n\nDogecoin addresses must start with 'D' (e.g. DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L).");
+        return;
+      }
     }
 
     const dynamicVol = deriveDynamicVolume(currentAddress);
@@ -701,6 +709,8 @@ export default function ForensicDashboard() {
                       totalSuspiciousUsd += amt * 2800.0;
                     } else if (tok === "BTC" || tok === "WBTC") {
                       totalSuspiciousUsd += amt * 65000.0;
+                    } else if (tok === "DOGE") {
+                      totalSuspiciousUsd += amt * 0.12;
                     } else {
                       totalSuspiciousUsd += amt;
                     }
@@ -713,6 +723,8 @@ export default function ForensicDashboard() {
                       totalSuspiciousUsd += cleanedNum * 2800.0;
                     } else if (rawStr.toUpperCase().includes("BTC")) {
                       totalSuspiciousUsd += cleanedNum * 65000.0;
+                    } else if (rawStr.toUpperCase().includes("DOGE")) {
+                      totalSuspiciousUsd += cleanedNum * 0.12;
                     } else {
                       totalSuspiciousUsd += cleanedNum;
                     }
@@ -794,132 +806,6 @@ export default function ForensicDashboard() {
     }
   };
 
-  const loadDynamicFallbackTopology = (targetAddr: string, chain: string, amount: number) => {
-    if (!cyInstance.current) return;
-
-    const clean = targetAddr.trim().toLowerCase();
-    const isBenchmark = clean === "0x71c2e36675b8b1fc2ffda6112de9c1c90d218976";
-    const riskProf = calculateDynamicRiskScore(targetAddr, "SUSPECT");
-    const isCleanOrVasp = riskProf.score <= 35;
-
-    // Root Node representing queried address
-    const rootNode = {
-      data: {
-        id: targetAddr,
-        label: `Suspect: ${targetAddr.slice(0, 6)}...${targetAddr.slice(-4)}`,
-        category: isCleanOrVasp ? "VASP" : "SUSPECT",
-        address: targetAddr,
-        blockchain: chain,
-        color_code: riskProf.color,
-        color: riskProf.color,
-        nodeColor: riskProf.color,
-        risk_score: riskProf.score,
-        riskScore: riskProf.score,
-        hop_level: 0,
-        attribution: {
-          vasp_name: isCleanOrVasp ? "Verified VASP / Treasury" : "Direct On-Chain Wallet",
-          tier: isCleanOrVasp ? "TIER_0_DIRECT_BLOOM" : "PRIMARY_TARGET",
-          compliance_email: isCleanOrVasp ? "nodal.officer@coindcx.com" : undefined,
-        },
-      },
-    };
-
-    let elements: any[] = [];
-
-    // ONLY the standardized NCRP benchmark case loads the multi-hop demonstration tree
-    if (isBenchmark) {
-      const vaspAddr = "0x40ec5b33f54e0e8a33a975908c5ba1c14e5bbbdf";
-      const muleHubAddr = "0x71c2e36611112222333344445555666677778888";
-      elements = [
-        rootNode,
-        {
-          data: {
-            id: vaspAddr,
-            label: "VASP: CoinDCX Nodal Vault",
-            category: "VASP",
-            address: vaspAddr,
-            blockchain: chain,
-            color_code: "#3b82f6",
-            color: "#3b82f6",
-            risk_score: 15,
-            riskScore: 15,
-            hop_level: 1,
-            attribution: {
-              vasp_name: "CoinDCX Nodal Vault",
-              entity_type: "VASP_HOT_WALLET",
-              tier: "TIER_0_DIRECT_BLOOM",
-              compliance_email: "nodal.officer@coindcx.com",
-              fiu_registered: true,
-            },
-          },
-        },
-        {
-          data: {
-            id: "mule_cluster_1",
-            label: "Mule Ring (6 Wallets | 8,700 USDT)",
-            category: "MULE_CLUSTER",
-            blockchain: chain,
-            color_code: "#f97316",
-            color: "#f97316",
-            is_mule_cluster: true,
-            risk_score: 85,
-            riskScore: 85,
-            hop_level: 1,
-            cluster_data: {
-              cluster_id: "MULE_RING_ETH_01",
-              parent_address: targetAddr,
-              total_wallets: 6,
-              total_volume_usdt: 8700,
-              members: [
-                { address: "0x99900000000000000000000000000000a0b", split_amount: 1450, percentage_of_parent: 16.6, current_balance: 1300 },
-                { address: "0x99910000000000000000000000000001a1b", split_amount: 1450, percentage_of_parent: 16.6, current_balance: 1420 },
-                { address: "0x99920000000000000000000000000002a2b", split_amount: 1450, percentage_of_parent: 16.6, current_balance: 1100 },
-                { address: "0x99930000000000000000000000000003a3b", split_amount: 1450, percentage_of_parent: 16.6, current_balance: 1450 },
-                { address: "0x99940000000000000000000000000004a4b", split_amount: 1450, percentage_of_parent: 16.6, current_balance: 1250 },
-                { address: "0x99950000000000000000000000000005a5b", split_amount: 1450, percentage_of_parent: 16.6, current_balance: 1400 },
-              ],
-            },
-          },
-        },
-        {
-          data: { id: "edge_1", source: targetAddr, target: vaspAddr, label: "6,000 USDT" },
-        },
-        {
-          data: { id: "edge_2", source: targetAddr, target: "mule_cluster_1", label: "8,700 USDT" },
-        },
-      ];
-    } else {
-      // For any user wallet or newly queried wallet with 0 outflows: Render strictly the 1 Root Node
-      elements = [rootNode];
-    }
-
-    cyInstance.current.elements().remove();
-    cyInstance.current.add(elements);
-    const layout = cyInstance.current.layout({
-      name: "cose",
-      animate: true,
-      nodeOverlap: 20,
-      idealEdgeLength: 120,
-      nodeRepulsion: 450000,
-      componentSpacing: 100,
-      nodeDimensionsIncludeLabels: true,
-    });
-    layout.one("layoutstop", () => {
-      cyInstance.current.fit(null, 35);
-    });
-    layout.run();
-
-    setSelectedNode(rootNode.data as any);
-    const p2p = deriveP2PData(targetAddr, rootNode.data.attribution?.vasp_name, amount);
-    setP2pData(p2p);
-    setSelectedCluster(null);
-
-    const typs = deriveTypologies(riskProf.score, isCleanOrVasp ? "VASP" : "SUSPECT");
-    setMuleProb(typs.mule);
-    setRansomProb(typs.ransom);
-    setDarknetProb(typs.darknet);
-  };
-
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -939,7 +825,6 @@ export default function ForensicDashboard() {
       // If direct window write blocked
     }
     
-    // Fallback: Blob download or open
     try {
       const blob = new Blob([htmlContent], { type: "text/html" });
       const url = URL.createObjectURL(blob);
@@ -1305,16 +1190,16 @@ export default function ForensicDashboard() {
                 onChange={(e) => handleAddressChange(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && executeTraversal()}
                 className="w-full bg-transparent pl-3.5 pr-20 py-2 text-sm text-[#f8fafc] outline-none font-mono"
-                placeholder="Enter Suspect Wallet Address (EVM 0x... or TRON T...)"
+                placeholder="Enter Suspect Wallet (EVM 0x..., TRON T..., BTC 1/3/bc1..., DOGE D...)"
               />
               <span className={`absolute right-3 text-[10px] font-mono px-1.5 py-0.5 rounded pointer-events-none ${
-                suspectAddress.trim().length === 42 
+                suspectAddress.trim().length >= 26 
                   ? "bg-emerald-500/20 text-emerald-400 font-semibold" 
                   : suspectAddress.trim().length > 0 
                   ? "bg-amber-500/20 text-amber-400 font-semibold" 
                   : "text-[#64748b]"
               }`}>
-                {suspectAddress.trim().length}/42 {suspectAddress.trim().length === 42 ? "✓" : "⚠️"}
+                {suspectAddress.trim().length} chars {suspectAddress.trim().length >= 26 ? "✓" : "⚠️"}
               </span>
             </div>
             <select
@@ -1326,6 +1211,7 @@ export default function ForensicDashboard() {
               <option value="ethereum">Ethereum (EVM)</option>
               <option value="tron">TRON (TRC-20)</option>
               <option value="bitcoin">Bitcoin (UTXO)</option>
+              <option value="dogecoin">Dogecoin (DOGE - UTXO)</option>
               <option value="polygon">Polygon</option>
               <option value="bsc">BSC</option>
             </select>
@@ -1350,37 +1236,47 @@ export default function ForensicDashboard() {
       </header>
 
       {/* Quick Demo Preset Chips Bar */}
-      <div className="bg-[#0b1120] border-b border-[#334155]/60 px-5 py-1.5 flex items-center gap-3 text-xs z-10">
-        <span className="text-[#64748b] font-semibold text-[11px] uppercase tracking-wider">Quick Presets:</span>
+      <div className="bg-[#0b1120] border-b border-[#334155]/60 px-5 py-1.5 flex items-center gap-3 text-xs z-10 overflow-x-auto">
+        <span className="text-[#64748b] font-semibold text-[11px] uppercase tracking-wider whitespace-nowrap">Quick Presets:</span>
         <button
           onClick={() => {
             const addr = "0x098B716B8Aaf21512996dC57EB0615e2383E2f96";
-            setSuspectAddress(addr);
+            setBlockchain("ethereum");
             handleAddressChange(addr);
           }}
-          className="bg-[#1e293b] hover:bg-[#334155] text-sky-400 border border-sky-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1"
+          className="bg-[#1e293b] hover:bg-[#334155] text-sky-400 border border-sky-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1 whitespace-nowrap"
         >
           ⚡ Live Target: 0x098B...2f96 (7 Nodes)
         </button>
         <button
           onClick={() => {
             const addr = "0x28C6c06298d514Db089934071355E5743bf21d60";
-            setSuspectAddress(addr);
+            setBlockchain("ethereum");
             handleAddressChange(addr);
           }}
-          className="bg-[#1e293b] hover:bg-[#334155] text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1"
+          className="bg-[#1e293b] hover:bg-[#334155] text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1 whitespace-nowrap"
         >
           🏢 Binance Vault: 0x28C6...1d60 (14 Nodes)
         </button>
         <button
           onClick={() => {
             const addr = "0x71C2e36675B8B1Fc2ffDa6112dE9C1C90D218976";
-            setSuspectAddress(addr);
+            setBlockchain("ethereum");
             handleAddressChange(addr);
           }}
-          className="bg-[#1e293b] hover:bg-[#334155] text-orange-400 border border-orange-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1"
+          className="bg-[#1e293b] hover:bg-[#334155] text-orange-400 border border-orange-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1 whitespace-nowrap"
         >
           ⚖️ NCRP-2026 Sample Case
+        </button>
+        <button
+          onClick={() => {
+            const addr = "DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L";
+            setBlockchain("dogecoin");
+            handleAddressChange(addr);
+          }}
+          className="bg-[#1e293b] hover:bg-[#334155] text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1 whitespace-nowrap"
+        >
+          🐕 DOGE Richlist: DH5y...mr7L
         </button>
       </div>
 
