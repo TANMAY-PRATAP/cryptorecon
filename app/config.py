@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     TRON_GRID_API_URL: str = os.getenv("TRON_GRID_API_URL", "https://api.trongrid.io")
     TRON_GRID_API_KEY: Optional[str] = os.getenv("TRON_GRID_API_KEY", None)
     BITCOIN_RPC_URL: str = os.getenv("BITCOIN_RPC_URL", "https://blockstream.info/api")
+    DOGECOIN_RPC_URL: str = os.getenv("DOGECOIN_RPC_URL", "https://api.blockcypher.com/v1/doge/main")
+    DOGECOIN_API_KEY: Optional[str] = os.getenv("DOGECOIN_API_KEY", None)
     ETHERSCAN_API_KEY: Optional[str] = os.getenv("ETHERSCAN_API_KEY", None)
 
     # Multicall3 Smart Contract Address (standard across EVM chains)
